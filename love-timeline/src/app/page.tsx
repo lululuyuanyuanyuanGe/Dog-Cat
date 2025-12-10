@@ -8,7 +8,7 @@ export default async function Home() {
 
   // Parallel data fetching: Memories, Comments, and Users (Partners)
   const [memoriesRes, commentsRes, usersRes] = await Promise.all([
-    supabase.from('memories').select('*, users(display_name, avatar_url)').order('date', { ascending: false }),
+    supabase.from('memories').select('*, users(display_name, avatar_url)').order('date', { ascending: false }).order('created_at', { ascending: false }),
     supabase.from('comments').select('*').order('created_at', { ascending: true }),
     supabase.from('users').select('*').limit(2) // Get first two users
   ]);

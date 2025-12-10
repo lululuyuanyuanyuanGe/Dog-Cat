@@ -9,9 +9,10 @@ import SettingsModal from './SettingsModal';
 
 type Props = {
     initialUser?: any; 
+    onUserChange?: (user: any) => void;
 };
 
-const ProfileWidget = ({ initialUser }: Props) => {
+const ProfileWidget = ({ initialUser, onUserChange }: Props) => {
     const [user, setUser] = useState<any>(initialUser || null);
     const [isOpen, setIsOpen] = useState(false);
     const [showLogin, setShowLogin] = useState(false);
@@ -19,6 +20,13 @@ const ProfileWidget = ({ initialUser }: Props) => {
     
     const supabase = createSupabaseBrowserClient();
     const router = useRouter();
+
+    // Propagate user changes to parent
+    useEffect(() => {
+        if (onUserChange) {
+            onUserChange(user);
+        }
+    }, [user, onUserChange]);
 
     useEffect(() => {
         // Check active session

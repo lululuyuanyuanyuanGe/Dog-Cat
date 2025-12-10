@@ -11,30 +11,28 @@ interface DatePickerProps {
 
 export default function DatePicker({ value, onChange }: DatePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [viewDate, setViewDate] = useState(new Date(value || new Date())); // Controls the month we are viewing
+  const [viewDate, setViewDate] = useState(new Date(value || new Date())); 
+  const [viewMode, setViewMode] = useState<'calendar' | 'years'>('calendar');
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setIsOpen(false);
+        setViewMode('calendar');
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Update view if value changes externally
   useEffect(() => {
     if (value) {
-      setViewDate(new Date(value));
+      // Fix timezone parsing by treating string as local date components
+      const [y, m, d] = value.split('-').map(Number);
+      setViewDate(new Date(y, m - 1, d));
     }
   }, [value]);
-
-  // Calendar Logic
-  const daysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
-  const firstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay();
 
   const year = viewDate.getFullYear();
   const month = viewDate.getMonth();
@@ -47,27 +45,34 @@ export default function DatePicker({ value, onChange }: DatePickerProps) {
   const handleNextMonth = () => setViewDate(new Date(year, month + 1, 1));
 
   const handleDayClick = (day: number) => {
-    // Construct YYYY-MM-DD manually to avoid timezone issues
     const selected = new Date(year, month, day);
     const formatted = `${selected.getFullYear()}-${String(selected.getMonth() + 1).padStart(2, '0')}-${String(selected.getDate()).padStart(2, '0')}`;
     onChange(formatted);
     setIsOpen(false);
   };
 
+  const handleYearClick = (y: number) => {
+      setViewDate(new Date(y, month, 1));
+      setViewMode('calendar');
+  };
+
+  const daysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
+  const firstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay();
+
   const renderDays = () => {
     const totalDays = daysInMonth(year, month);
     const startDay = firstDayOfMonth(year, month);
     const days = [];
 
-    // Empty cells for offset
     for (let i = 0; i < startDay; i++) {
       days.push(<div key={`empty-${i}`} className="h-8 w-8" />);
     }
 
-    // Actual days
     for (let d = 1; d <= totalDays; d++) {
       const currentDate = new Date(year, month, d);
-      const isSelected = value === `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
+      // Construct local comparison string
+      const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
+      const isSelected = value === dateStr;
       const isToday = currentDate.getTime() === today.getTime();
 
       days.push(
@@ -91,9 +96,28 @@ export default function DatePicker({ value, onChange }: DatePickerProps) {
     return days;
   };
 
+  const renderYears = () => {
+      const years = [];
+      const currentYear = new Date().getFullYear();
+      const startYear = currentYear + 1; 
+      const endYear = 1990;
+
+      for (let y = startYear; y >= endYear; y--) {
+          years.push(
+              <button 
+                key={y} 
+                onClick={() => handleYearClick(y)}
+                className={`p-2 rounded-lg text-sm font-bold ${y === year ? 'bg-coral text-white' : 'hover:bg-slate-100 text-slate-600'}`}
+              >
+                  {y}
+              </button>
+          )
+      }
+      return years;
+  };
+
   return (
     <div className="relative w-full" ref={containerRef}>
-      {/* Trigger Input */}
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
@@ -111,7 +135,6 @@ export default function DatePicker({ value, onChange }: DatePickerProps) {
         <CalendarIcon size={18} className="text-slate-400 group-hover:text-coral transition-colors" />
       </button>
 
-      {/* Calendar Dropdown */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -120,32 +143,55 @@ export default function DatePicker({ value, onChange }: DatePickerProps) {
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
             className="absolute z-50 mt-2 w-full min-w-[300px] p-4 bg-white/95 backdrop-blur-xl border border-white/50 shadow-2xl rounded-2xl"
           >
-            {/* Header */}
             <div className="flex items-center justify-between mb-4">
-              <button type="button" onClick={handlePrevMonth} className="p-1 hover:bg-slate-100 rounded-full text-slate-500 hover:text-coral transition-colors">
-                <ChevronLeft size={20} />
+              <button 
+                type="button" 
+                onClick={handlePrevMonth} 
+                className="p-1 hover:bg-slate-100 rounded-full text-slate-500 hover:text-coral transition-colors"
+                disabled={viewMode === 'years'}
+              >
+                <ChevronLeft size={20} className={viewMode === 'years' ? 'opacity-0' : ''} />
               </button>
-              <span className="font-display font-bold text-slate-700 text-lg">
-                {monthNames[month]} {year}
-              </span>
-              <button type="button" onClick={handleNextMonth} className="p-1 hover:bg-slate-100 rounded-full text-slate-500 hover:text-coral transition-colors">
-                <ChevronRight size={20} />
-              </button>
-            </div>
-
-            {/* Weekday Names */}
-            <div className="grid grid-cols-7 mb-2 text-center">
-              {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((day) => (
-                <span key={day} className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                  {day}
+              
+              <button 
+                type="button"
+                onClick={() => setViewMode(viewMode === 'calendar' ? 'years' : 'calendar')}
+                className="font-display font-bold text-slate-700 text-lg hover:text-coral transition-colors flex items-center gap-1"
+              >
+                {viewMode === 'calendar' ? `${monthNames[month]} ${year}` : `Select Year`}
+                <span className="text-[10px] text-slate-400 font-sans font-normal ml-1">
+                    {viewMode === 'calendar' ? '▼' : '▲'}
                 </span>
-              ))}
+              </button>
+
+              <button 
+                type="button" 
+                onClick={handleNextMonth} 
+                className="p-1 hover:bg-slate-100 rounded-full text-slate-500 hover:text-coral transition-colors"
+                disabled={viewMode === 'years'}
+              >
+                <ChevronRight size={20} className={viewMode === 'years' ? 'opacity-0' : ''} />
+              </button>
             </div>
 
-            {/* Days Grid */}
-            <div className="grid grid-cols-7 gap-y-2 justify-items-center">
-              {renderDays()}
-            </div>
+            {viewMode === 'calendar' ? (
+                <>
+                    <div className="grid grid-cols-7 mb-2 text-center">
+                    {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((day) => (
+                        <span key={day} className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                        {day}
+                        </span>
+                    ))}
+                    </div>
+                    <div className="grid grid-cols-7 gap-y-2 justify-items-center">
+                    {renderDays()}
+                    </div>
+                </>
+            ) : (
+                <div className="grid grid-cols-4 gap-2 max-h-[250px] overflow-y-auto pr-1">
+                    {renderYears()}
+                </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

@@ -10,10 +10,21 @@ import BackgroundBlobs from '@/components/BackgroundBlobs';
 import BackgroundDecorations from '@/components/BackgroundDecorations';
 import ProfileWidget from '@/components/ProfileWidget';
 import AddMemoryModal from '@/components/AddMemoryModal';
+import { useUploadQueue } from '@/hooks/useUploadQueue';
+import { Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 
-// --- CONFIGURATION ---
 const START_DATE = "2025-12-08T00:00:00"; 
 const PLACEHOLDER_AVATAR = "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&h=100&fit=crop";
+
+const DAY_STYLES: { [key: number]: { label: string; color: string } } = {
+  0: { label: 'Sunday ☀️', color: 'bg-amber-100 text-amber-600 border-amber-200' },
+  1: { label: 'Monday 🚀', color: 'bg-blue-100 text-blue-600 border-blue-200' },
+  2: { label: 'Tuesday 🛠️', color: 'bg-emerald-100 text-emerald-600 border-emerald-200' },
+  3: { label: 'Wednesday 🐫', color: 'bg-orange-100 text-orange-600 border-orange-200' },
+  4: { label: 'Thursday 💡', color: 'bg-violet-100 text-violet-600 border-violet-200' },
+  5: { label: 'Friday 🎉', color: 'bg-pink-100 text-pink-600 border-pink-200' },
+  6: { label: 'Saturday 🛋️', color: 'bg-rose-100 text-rose-600 border-rose-200' },
+};
 
 interface LoveTimelineProps {
   initialMemories: any[]; 
@@ -23,27 +34,42 @@ interface LoveTimelineProps {
 
 export default function LoveTimeline({ initialMemories, initialComments, partners }: LoveTimelineProps) {
     const [isAddMemoryOpen, setIsAddMemoryOpen] = useState(false);
-    
-    // --- OPTIMISTIC STATE ---
     const [memories, setMemories] = useState(initialMemories);
+    const [currentUser, setCurrentUser] = useState<any>(null);
+    const { queue, addToQueue } = useUploadQueue();
 
-    // Sync state with server data when it refreshes
     useEffect(() => {
         setMemories(initialMemories);
     }, [initialMemories]);
 
-    // Optimistic Handlers
     const handleAddOptimistic = (newMemory: any) => {
-        // Prepend new memory to the list instantly
-        setMemories(prev => [newMemory, ...prev]);
+        setMemories(prev => {
+            const updated = [newMemory, ...prev];
+            return updated.sort((a, b) => {
+                const dateA = new Date(a.date).getTime();
+                const dateB = new Date(b.date).getTime();
+                if (dateB !== dateA) return dateB - dateA;
+                return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+            });
+        });
     };
 
     const handleDeleteOptimistic = (id: string) => {
-        // Remove memory instantly
         setMemories(prev => prev.filter(m => m.id !== id));
     };
 
-    // Construct Hero Data from Real Partners
+    const handleLikeOptimistic = (id: string) => {
+        setMemories(prev => prev.map(m => 
+            m.id === id ? { ...m, likes: (m.likes || 0) + 1 } : m
+        ));
+    };
+
+    const handleUnlikeOptimistic = (id: string) => {
+        setMemories(prev => prev.map(m => 
+            m.id === id ? { ...m, likes: Math.max((m.likes || 0) - 1, 0) } : m
+        ));
+    };
+
     const heroData = useMemo(() => {
         const p1 = partners?.[0];
         const p2 = partners?.[1];
@@ -54,7 +80,6 @@ export default function LoveTimeline({ initialMemories, initialComments, partner
         };
     }, [partners]);
 
-    // Transform Supabase data to App structure
     const processedData = useMemo(() => {
         if (!memories || memories.length === 0) return [];
 
@@ -64,22 +89,46 @@ export default function LoveTimeline({ initialMemories, initialComments, partner
                 acc[date] = { date: date, items: [], comments: [] };
             }
             
-            acc[date].items.push({
-                type: memory.type,
-                src: memory.media_url,
-                content: memory.content,
-                size: memory.metadata?.size || 'medium',
-                time: new Date(memory.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
-                bg: memory.type === 'note' ? 'bg-pastel-pink/30' : undefined,
-                title: memory.metadata?.original_filename,
-                sizeLabel: memory.metadata?.size ? `${(memory.metadata.size/1024/1024).toFixed(1)} MB` : undefined,
-                id: memory.id,
-                likes: memory.likes || 0,
-                author: {
-                    name: memory.users?.display_name || "Unknown",
-                    avatar: memory.users?.avatar_url
-                }
-            });
+            const author = memory.author || {
+                name: memory.users?.display_name || "Unknown",
+                avatar: memory.users?.avatar_url
+            };
+
+            // Attempt to Group with Last Item
+            const lastItem = acc[date].items[acc[date].items.length - 1];
+            const isGroupable = 
+                memory.type === 'photo' && 
+                lastItem && 
+                lastItem.type === 'photo' &&
+                lastItem.author.name === author.name &&
+                lastItem.content === memory.content && // Same caption
+                // Time difference < 2 minutes (allows for sequential upload lag)
+                Math.abs(new Date(lastItem.raw_created_at).getTime() - new Date(memory.created_at).getTime()) < 120000;
+
+            if (isGroupable) {
+                // Merge into existing item
+                lastItem.media_urls.push(memory.media_url);
+                // We keep the ID of the 'parent' (first/newest item) for likes/deletes
+                // This means 'liking' the group counts towards the first photo only? 
+                // Or we treat it as a collection. For now, simple.
+            } else {
+                // New Item
+                acc[date].items.push({
+                    type: memory.type,
+                    src: memory.media_url,
+                    media_urls: memory.type === 'photo' ? [memory.media_url] : undefined, // Initialize array
+                    content: memory.content,
+                    size: memory.metadata?.size || 'medium',
+                    time: new Date(memory.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
+                    bg: memory.type === 'note' ? 'bg-pastel-pink/30' : undefined,
+                    title: memory.metadata?.original_filename,
+                    sizeLabel: memory.metadata?.size ? `${(memory.metadata.size/1024/1024).toFixed(1)} MB` : undefined,
+                    id: memory.id,
+                    likes: memory.likes || 0,
+                    author: author,
+                    raw_created_at: memory.created_at // Helper for grouping
+                });
+            }
 
             return acc;
         }, {});
@@ -105,18 +154,55 @@ export default function LoveTimeline({ initialMemories, initialComments, partner
     const selectedYear = new Date(activeDate.replace(/-/g, '/')).getFullYear();
     const currentData = processedData.find((d: any) => d.date === activeDate) || { date: activeDate, items: [], comments: [] };
     const displayDate = new Date(activeDate.replace(/-/g,'/')).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    
+    const dayOfWeek = new Date(activeDate.replace(/-/g, '/')).getDay();
+    const dayStyle = DAY_STYLES[dayOfWeek] || DAY_STYLES[0];
+
+    const activeQueue = queue.filter(q => q.status !== 'completed' || (q.status === 'completed' && queue.length > 0)); 
 
     return (
         <div className="min-h-screen pb-20 relative font-sans text-slate">
             <BackgroundBlobs />
             <BackgroundDecorations />
             
-            <ProfileWidget initialUser={partners?.[0]} />
+            <ProfileWidget 
+                initialUser={partners?.[0]} 
+                onUserChange={setCurrentUser} 
+            />
+            
             <AddMemoryModal 
                 isOpen={isAddMemoryOpen} 
                 onClose={() => setIsAddMemoryOpen(false)} 
-                onAddOptimistic={handleAddOptimistic} // Pass handler
+                onAddOptimistic={handleAddOptimistic} 
+                currentUser={currentUser} 
+                addToQueue={addToQueue} 
             />
+
+            <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none">
+                {queue.map((item) => (
+                    <div key={item.id} className={`bg-white/90 backdrop-blur-md p-4 rounded-xl shadow-xl border flex items-center gap-3 w-72 transition-all duration-300 pointer-events-auto ${item.status === 'error' ? 'border-red-200 bg-red-50' : 'border-white'}`}>
+                        <div className="bg-slate-100 p-2 rounded-lg">
+                            {item.status === 'uploading' ? (
+                                <Loader2 size={20} className="animate-spin text-coral" />
+                            ) : item.status === 'error' ? (
+                                <AlertCircle size={20} className="text-red-500" />
+                            ) : item.status === 'completed' ? (
+                                <CheckCircle2 size={20} className="text-green-500" />
+                            ) : (
+                                <div className="w-5 h-5 rounded-full border-2 border-slate-300" />
+                            )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold text-slate-700 truncate">
+                                {item.type === 'note' ? 'Uploading Note...' : `Uploading ${item.files.length} items...`}
+                            </p>
+                            <p className="text-[10px] text-slate-400 font-mono uppercase tracking-wider">
+                                {item.status === 'error' ? 'Failed' : item.status === 'completed' ? 'Done' : 'Processing'}
+                            </p>
+                        </div>
+                    </div>
+                ))}
+            </div>
 
             <header className="relative z-10 flex flex-col items-center">
                 <HeroHighlight user={heroData} />
@@ -133,7 +219,11 @@ export default function LoveTimeline({ initialMemories, initialComments, partner
                     <div className="mb-8 flex items-end justify-between bg-white/40 backdrop-blur-md p-6 rounded-[2rem] border border-white/50 shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-700">
                         <div>
                             <h2 className="font-display text-3xl md:text-5xl font-bold text-slate mb-2">{displayDate}</h2>
-                            <div className="flex gap-2"><span className="bg-pastel-mint px-3 py-1 rounded-full text-xs font-bold text-slate/60 border border-emerald-100">Recorded 🌿</span></div>
+                            <div className="flex gap-2">
+                                <span className={`${dayStyle.color} px-3 py-1 rounded-full text-xs font-bold border shadow-sm`}>
+                                    {dayStyle.label}
+                                </span>
+                            </div>
                         </div>
                         <button 
                             onClick={() => setIsAddMemoryOpen(true)}
@@ -151,7 +241,9 @@ export default function LoveTimeline({ initialMemories, initialComments, partner
                                     <ScrapbookItem 
                                         key={idx} 
                                         item={item} 
-                                        onDeleteOptimistic={handleDeleteOptimistic} // Pass handler
+                                        onDeleteOptimistic={handleDeleteOptimistic} 
+                                        onLikeOptimistic={handleLikeOptimistic}
+                                        onUnlikeOptimistic={handleUnlikeOptimistic}
                                     />
                                 ))}
                             </div>

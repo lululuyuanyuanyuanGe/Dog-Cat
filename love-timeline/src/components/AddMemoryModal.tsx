@@ -3,8 +3,6 @@
 import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Upload, Loader2, Image as ImageIcon, Video, FileText, Mic, File } from 'lucide-react';
-import { createSupabaseBrowserClient } from '@/lib/supabase/client';
-import { useRouter } from 'next/navigation';
 import DatePicker from '@/components/DatePicker';
 
 type MemoryType = 'photo' | 'video' | 'note' | 'audio' | 'pdf';
@@ -13,20 +11,24 @@ interface AddMemoryModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAddOptimistic: (newMemory: any) => void;
+  currentUser: any;
+  addToQueue: (item: any) => void; 
 }
 
-export default function AddMemoryModal({ isOpen, onClose, onAddOptimistic }: AddMemoryModalProps) {
-  const router = useRouter();
-  const supabase = createSupabaseBrowserClient();
+export default function AddMemoryModal({ isOpen, onClose, onAddOptimistic, currentUser, addToQueue }: AddMemoryModalProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  // Correct Local Date Calculation
+  const getLocalDate = () => {
+      const now = new Date();
+      return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  };
+
+  const [date, setDate] = useState<string>(getLocalDate());
   const [type, setType] = useState<MemoryType>('photo');
   const [content, setContent] = useState('');
   
   const [files, setFiles] = useState<File[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -40,15 +42,19 @@ export default function AddMemoryModal({ isOpen, onClose, onAddOptimistic }: Add
     setFiles(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setIsSaving(true);
+
+    const author = {
+        name: currentUser?.display_name || "Me",
+        avatar: currentUser?.avatar_url
+    };
 
     try {
       // 1. NOTES
       if (type === 'note') {
-          // Optimistic update for note
+          // Optimistic
           const tempId = `temp-${Date.now()}`;
           const newNote = {
               id: tempId,
@@ -57,90 +63,60 @@ export default function AddMemoryModal({ isOpen, onClose, onAddOptimistic }: Add
               content,
               media_url: null,
               created_at: new Date().toISOString(),
-              metadata: {}
+              metadata: {},
+              author
           };
-          onAddOptimistic(newNote); // Instant UI update
-          onClose(); // Close immediately
-
-          // Background Save
-          const res = await fetch('/api/memories', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ date, type, content, media_url: null, metadata: {} }),
+          onAddOptimistic(newNote);
+          
+          // Queue Background Upload
+          addToQueue({
+              date,
+              type,
+              content,
+              files: [], // No files
+              author
           });
-          if (!res.ok) throw new Error('Failed to save note');
-          router.refresh();
       } 
-      // 2. MEDIA (Parallel Uploads)
+      // 2. MEDIA
       else {
           if (files.length === 0) throw new Error('Please select at least one file.');
 
-          setIsUploading(true);
-          
-          // Generate Temp Optimistic Items immediately
+          // Optimistic
           const tempMemories = files.map((file, i) => ({
               id: `temp-${Date.now()}-${i}`,
               date,
               type,
               content,
-              media_url: URL.createObjectURL(file), // Show local blob instantly
+              media_url: URL.createObjectURL(file),
               created_at: new Date().toISOString(),
-              metadata: { original_filename: file.name, size: file.size, mime_type: file.type }
+              metadata: { original_filename: file.name, size: file.size, mime_type: file.type },
+              author
           }));
-
-          // Show them instantly
           tempMemories.forEach(m => onAddOptimistic(m));
-          onClose(); // Close modal immediately so user can continue using app
 
-          // Perform Uploads & Saves in Background
-          await Promise.all(files.map(async (file) => {
-              const fileExt = file.name.split('.').pop();
-              const safeFileName = file.name.replace(/[^a-zA-Z0-9]/g, '_');
-              const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}-${safeFileName}.${fileExt}`;
-              const filePath = `${type}s/${fileName}`;
-
-              // A. Upload
-              const { error: uploadError } = await supabase.storage
-                .from('LoveTimelineMedias')
-                .upload(filePath, file);
-
-              if (uploadError) console.error(`Upload failed for ${file.name}:`, uploadError);
-
-              const { data: { publicUrl } } = supabase.storage
-                .from('LoveTimelineMedias')
-                .getPublicUrl(filePath);
-
-              // B. Save to DB
-              await fetch('/api/memories', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  date,
-                  type,
-                  content,
-                  media_url: publicUrl,
-                  metadata: {
-                    original_filename: file.name,
-                    size: file.size,
-                    mime_type: file.type
-                  }
-                }),
-              });
-          }));
-
-          router.refresh(); // Refresh to get real IDs and URLs
+          // Queue Background Upload
+          addToQueue({
+              date,
+              type,
+              content,
+              files: files, // All files
+              author
+          });
       }
 
+      // Close Immediately - No Waiting!
+      onClose();
+      
+      // Reset Form
       setContent('');
       setFiles([]);
+      // Reset date to today? No, maybe they want to add another for same date.
+      // But if they close and reopen, 'isOpen' check logic in useEffect (if existed) would reset it?
+      // State persists here.
       
     } catch (err: any) {
       console.error(err);
       setError(err.message);
-      // In a real app, we might want to "rollback" the optimistic update here if it failed
-    } finally {
-      setIsUploading(false);
-      setIsSaving(false);
     }
   };
 
@@ -290,17 +266,10 @@ export default function AddMemoryModal({ isOpen, onClose, onAddOptimistic }: Add
                 </button>
                 <button
                   type="submit"
-                  disabled={isSaving || (type !== 'note' && files.length === 0)}
+                  disabled={type !== 'note' && files.length === 0}
                   className="bg-coral text-white px-6 py-2 rounded-xl font-bold shadow-lg shadow-coral/20 hover:shadow-coral/40 hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                 >
-                  {(isUploading || isSaving) ? (
-                    <>
-                      <Loader2 size={18} className="animate-spin mr-2" />
-                      {isUploading ? `Processing ${files.length}...` : 'Add Memory'}
-                    </>
-                  ) : (
-                    'Add Memory'
-                  )}
+                  Add Memory
                 </button>
               </div>
             </form>

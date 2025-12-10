@@ -12,63 +12,77 @@ interface Props {
     memories: Memory[];
 }
 
-// A 25x19 grid containing 357 cells for a symmetrical heart shape.
-const HEART_MAP = [
-  [0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0],
-  [0,0,1,1,1,1,1,1,0,0,0,0,0,0,0,1,1,1,1,1,1,1,0,0,0],
-  [0,1,1,1,1,1,1,1,1,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,0],
-  [1,1,1,1,1,1,1,1,1,1,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1],
-  [1,1,1,1,1,1,1,1,1,1,1,0,0,0,1,1,1,1,1,1,1,1,1,1,1],
-  [1,1,1,1,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,1,1,1],
-  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-  [0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0],
-  [0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0],
-  [0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0],
-  [0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0],
-  [0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0],
-  [0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0],
-  [0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0],
-  [0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0],
-  [0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0]
+// SOLID HEART MAP (~390 pixels)
+const SOLID_HEART_MAP = [
+  [0,0,0,0,1,1,1,1,1,1,0,0,0,0,0,1,1,1,1,1,1,0,0,0,0,0,0],
+  [0,0,0,1,1,1,1,1,1,1,1,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0,0],
+  [0,0,1,1,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,1,0,0,0,0],
+  [0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0],
+  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0],
+  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0],
+  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0],
+  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0],
+  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0],
+  [0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0],
+  [0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0],
+  [0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0],
+  [0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0],
+  [0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0],
+  [0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0],
+  [0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0],
+  [0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0],
+  [0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0],
+  [0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0],
+  [0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0],
+  [0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0]
 ];
 
 const ContributionHero = ({ memories }: Props) => {
     const { gridCells, totalCount } = useMemo(() => {
         const contributions = new Map<string, number>();
         let totalMemories = 0;
-        for (const memory of memories) {
-            const date = memory.date;
-            const count = memory.items.length;
-            contributions.set(date, (contributions.get(date) || 0) + count);
-            totalMemories += count;
+        
+        if (memories) {
+            for (const memory of memories) {
+                const date = memory.date;
+                const count = memory.items ? memory.items.length : 0;
+                contributions.set(date, (contributions.get(date) || 0) + count);
+                totalMemories += count;
+            }
         }
 
-        const year = new Date().getFullYear();
-        const isLeap = new Date(year, 1, 29).getDate() === 29;
-        const totalDays = isLeap ? 366 : 365;
+        const currentYear = new Date().getFullYear();
+        
+        // Count total active slots in the map
+        const totalSlots = SOLID_HEART_MAP.flat().filter(cell => cell === 1).length;
 
-        const yearDates = [];
-        const startDate = new Date(year, 0, 1);
-        for (let i = 0; i < totalDays; i++) {
-            const d = new Date(startDate);
-            d.setDate(d.getDate() + i);
-            yearDates.push(d.toISOString().split('T')[0]);
+        const dateList: string[] = [];
+        
+        // Generate enough dates to fill the ENTIRE map
+        // Start: Jan 1 of Current Year
+        // End: Whenever we fill 'totalSlots' (likely spills into Next Year)
+        for (let i = 0; i < totalSlots; i++) {
+            const d = new Date(Date.UTC(currentYear, 0, 1)); 
+            d.setUTCDate(d.getUTCDate() + i);
+            dateList.push(d.toISOString().split('T')[0]); 
         }
 
-        const colors: { [key: number]: string } = { 0: 'bg-rose-100/50', 1: 'bg-rose-200', 2: 'bg-rose-300', 3: 'bg-rose-400', 4: 'bg-coral shadow-[0_0_8px_rgba(255,107,107,0.4)]' };
+        const colors: { [key: number]: string } = { 
+            0: 'bg-rose-100/50', 
+            1: 'bg-rose-200', 
+            2: 'bg-rose-300', 
+            3: 'bg-rose-400', 
+            4: 'bg-coral shadow-[0_0_8px_rgba(255,107,107,0.4)]' 
+        };
         
         let dayIndex = 0;
-        const cells = HEART_MAP.flat().map((cell, i) => {
+        const cells = SOLID_HEART_MAP.flat().map((cell, i) => {
             if (cell === 0) {
-                return <div key={`empty-${i}`} />;
+                return <div key={`spacer-${i}`} />;
             }
             
-            if (dayIndex >= yearDates.length) return null; // Should not happen with a 357/365 map
-            
-            const date = yearDates[dayIndex];
+            // We ALWAYS grab a date, because dateList is exactly as long as totalSlots
+            const date = dateList[dayIndex];
             const count = contributions.get(date) || 0;
             dayIndex++;
 
@@ -78,16 +92,28 @@ const ContributionHero = ({ memories }: Props) => {
             else if (count > 2 && count <= 3) level = 3;
             else if (count > 3) level = 4;
             
-            const formattedDate = new Date(date).toLocaleDateString('en-US', {
-                year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' 
-            });
-            const contributionText = count === 1 ? '1 memory' : `${count || 'No'} memories`;
+            let tooltipText = "";
+            if (date) {
+                const [y, m, d] = date.split('-').map(Number);
+                const formattedDate = new Date(Date.UTC(y, m-1, d)).toLocaleDateString('en-US', {
+                    year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' 
+                });
+                const isNextYear = y > currentYear;
+                const yearLabel = isNextYear ? ` (${y})` : ''; // Show year only if it spills over
+                
+                const contributionText = count === 1 ? '1 memory' : `${count || 'No'} memories`;
+                tooltipText = `${contributionText} on ${formattedDate}${yearLabel}`;
+            }
 
             return (
                 <div key={date} className="relative group">
-                    <div className={`w-full h-full rounded-[2px] transition-all duration-200 ${colors[level]} cursor-pointer group-hover:scale-125 group-hover:shadow-lg group-hover:z-10`} />
+                    <div className={`w-full h-full rounded-[2px] transition-all duration-200 
+                        ${colors[level]} 
+                        cursor-pointer group-hover:scale-125 group-hover:shadow-lg group-hover:z-10
+                    `} />
+                    
                     <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max px-3 py-1.5 bg-slate text-white text-xs font-bold rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-20">
-                        {contributionText} on {formattedDate}
+                        {tooltipText}
                         <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-slate"></div>
                     </div>
                 </div>
@@ -112,8 +138,11 @@ const ContributionHero = ({ memories }: Props) => {
                     <p className="font-sans font-bold text-slate/30 text-xs md:text-sm tracking-[0.3em] uppercase mt-4">Beautiful Memories Together</p>
                 </div>
                 <div 
-                    className="grid gap-1 w-full"
-                    style={{ gridTemplateColumns: `repeat(${HEART_MAP[0].length}, minmax(0, 1fr))`, aspectRatio: `${HEART_MAP[0].length} / ${HEART_MAP.length}` }}
+                    className="grid gap-[2px] w-full max-w-[550px]" 
+                    style={{ 
+                        gridTemplateColumns: `repeat(${SOLID_HEART_MAP[0].length}, minmax(0, 1fr))`, 
+                        aspectRatio: `${SOLID_HEART_MAP[0].length} / ${SOLID_HEART_MAP.length}` 
+                    }}
                 >
                     {gridCells}
                 </div>

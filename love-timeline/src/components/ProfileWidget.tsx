@@ -1,16 +1,81 @@
-"use client";
-import React, { useState } from 'react';
-import Icon from './Icon';
+'use client';
 
+import React, { useState, useEffect } from 'react';
+import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { LogIn, LogOut, Settings, ChevronDown, User } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import LoginModal from './LoginModal';
+
+// We can accept an initialUser prop from server for faster hydration, but we'll rely on client auth for now
 type Props = {
-    user: {
-        name: string;
-        avatar: string;
-    }
+    initialUser?: any; 
 };
 
-const ProfileWidget = ({ user }: Props) => {
+const ProfileWidget = ({ initialUser }: Props) => {
+    const [user, setUser] = useState<any>(initialUser || null);
     const [isOpen, setIsOpen] = useState(false);
+    const [showLogin, setShowLogin] = useState(false);
+    const supabase = createSupabaseBrowserClient();
+    const router = useRouter();
+
+    useEffect(() => {
+        // Check active session
+        const getUser = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user) {
+                // Fetch profile data
+                const { data: profile } = await supabase
+                    .from('users')
+                    .select('*')
+                    .eq('id', session.user.id)
+                    .single();
+                
+                setUser({ ...session.user, ...profile });
+            } else {
+                setUser(null);
+            }
+        };
+
+        getUser();
+
+        // Listen for auth changes
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+             if (session?.user) {
+                 // We could refetch profile here, but page refresh usually handles it
+                 // For now just set basic user
+                 setUser(session.user); 
+                 router.refresh();
+             } else {
+                 setUser(null);
+                 router.refresh();
+             }
+        });
+
+        return () => subscription.unsubscribe();
+    }, [supabase, router]);
+
+    const handleLogout = async () => {
+        await supabase.auth.signOut();
+        setIsOpen(false);
+        router.refresh();
+    };
+
+    if (!user) {
+        return (
+            <>
+                <div className="fixed top-6 right-6 z-[100]">
+                    <button
+                        onClick={() => setShowLogin(true)}
+                        className="flex items-center gap-2 bg-white/70 backdrop-blur-xl px-4 py-2 rounded-full border border-white shadow-lg hover:bg-white hover:scale-105 transition-all text-slate-600 font-bold text-sm"
+                    >
+                        <LogIn size={16} />
+                        <span>Sign In</span>
+                    </button>
+                </div>
+                <LoginModal isOpen={showLogin} onClose={() => setShowLogin(false)} />
+            </>
+        );
+    }
 
     return (
         <div className="fixed top-6 right-6 z-[100]">
@@ -19,19 +84,25 @@ const ProfileWidget = ({ user }: Props) => {
                 className="flex items-center gap-3 bg-white/70 backdrop-blur-xl p-2 pr-5 rounded-full border border-white shadow-lg shadow-slate/5 cursor-pointer hover:bg-white transition-all group"
             >
                 <div className="relative">
-                    <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-white ring-2 ring-rose-100">
-                        <img src={user.avatar} alt="User" className="w-full h-full object-cover" />
+                    <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-white ring-2 ring-rose-100 flex items-center justify-center bg-slate-100">
+                        {user.avatar_url ? (
+                            <img src={user.avatar_url} alt="User" className="w-full h-full object-cover" />
+                        ) : (
+                            <User size={20} className="text-slate-400" />
+                        )}
                     </div>
                     <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 border-2 border-white rounded-full"></div>
                 </div>
 
                 <div className="flex flex-col">
                     <span className="text-xs font-bold text-slate/50 uppercase tracking-wider leading-none mb-0.5">Welcome</span>
-                    <span className="font-display font-bold text-slate text-sm leading-none group-hover:text-coral transition-colors">{user.name}</span>
+                    <span className="font-display font-bold text-slate text-sm leading-none group-hover:text-coral transition-colors">
+                        {user.display_name || user.email?.split('@')[0]}
+                    </span>
                 </div>
 
                 <div className={`ml-1 text-slate/40 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}>
-                    <Icon name="chevronDown" size={14} />
+                    <ChevronDown size={14} />
                 </div>
             </div>
 
@@ -39,11 +110,14 @@ const ProfileWidget = ({ user }: Props) => {
             {isOpen && (
                 <div className="absolute top-full right-0 mt-2 w-48 bg-white/90 backdrop-blur-xl rounded-2xl border border-white shadow-xl p-2 animate-in fade-in slide-in-from-top-2 duration-200">
                     <div className="p-2 hover:bg-rose-50 rounded-xl cursor-pointer flex items-center gap-3 text-slate/70 hover:text-coral transition-colors">
-                        <Icon name="settings" size={16} />
+                        <Settings size={16} />
                         <span className="text-sm font-bold">Settings</span>
                     </div>
-                    <div className="p-2 hover:bg-rose-50 rounded-xl cursor-pointer flex items-center gap-3 text-slate/70 hover:text-coral transition-colors">
-                        <Icon name="logOut" size={16} />
+                    <div 
+                        onClick={handleLogout}
+                        className="p-2 hover:bg-rose-50 rounded-xl cursor-pointer flex items-center gap-3 text-slate/70 hover:text-coral transition-colors"
+                    >
+                        <LogOut size={16} />
                         <span className="text-sm font-bold">Log Out</span>
                     </div>
                 </div>

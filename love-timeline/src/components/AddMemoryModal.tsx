@@ -54,14 +54,14 @@ export default function AddMemoryModal({ isOpen, onClose }: AddMemoryModalProps)
         const filePath = `${type}s/${fileName}`; // e.g., photos/123_abc.jpg
 
         const { error: uploadError } = await supabase.storage
-          .from('media') // Ensure this bucket exists in Supabase
+          .from('LoveTimelineMedias') // Ensure this bucket exists in Supabase
           .upload(filePath, file);
 
         if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
 
         // Get Public URL
         const { data: { publicUrl } } = supabase.storage
-          .from('media')
+          .from('LoveTimelineMedias')
           .getPublicUrl(filePath);
 
         media_url = publicUrl;

@@ -14,22 +14,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // 2. Verify Admin Role
-    // We query the 'users' table to check the role of the current user
-    const { data: userProfile, error: profileError } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', session.user.id)
-      .single();
+    // REMOVED: Role check. 
+    // In the new schema, any authenticated user is considered a "partner" and can add memories.
 
-    if (profileError || userProfile?.role !== 'admin') {
-      return NextResponse.json(
-        { error: 'Forbidden: Only admins can add memories.' },
-        { status: 403 }
-      );
-    }
-
-    // 3. Parse Request Data
+    // 2. Parse Request Data
     const body = await request.json();
     const { date, type, content, media_url, metadata } = body;
 
@@ -41,7 +29,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // 4. Insert Memory
+    // 3. Insert Memory
     const { data, error } = await supabase
       .from('memories')
       .insert({

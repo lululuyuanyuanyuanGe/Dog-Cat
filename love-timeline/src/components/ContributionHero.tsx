@@ -1,5 +1,5 @@
 "use client";
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import DoodleArrow from './DoodleArrow';
 import DoodleUnderline from './DoodleUnderline';
 
@@ -12,33 +12,91 @@ interface Props {
     memories: Memory[];
 }
 
+// A 25x19 grid containing 357 cells for a symmetrical heart shape.
+const HEART_MAP = [
+  [0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0],
+  [0,0,1,1,1,1,1,1,0,0,0,0,0,0,0,1,1,1,1,1,1,1,0,0,0],
+  [0,1,1,1,1,1,1,1,1,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,0],
+  [1,1,1,1,1,1,1,1,1,1,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1],
+  [1,1,1,1,1,1,1,1,1,1,1,0,0,0,1,1,1,1,1,1,1,1,1,1,1],
+  [1,1,1,1,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,1,1,1],
+  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+  [0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0],
+  [0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0],
+  [0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0],
+  [0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0],
+  [0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0],
+  [0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0],
+  [0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0],
+  [0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0],
+  [0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0]
+];
+
 const ContributionHero = ({ memories }: Props) => {
-    const [matrix, setMatrix] = useState<any[]>([]);
-
-    useEffect(() => {
-        // Use the prototype's random generation for the visual matrix
-        const rows = 27;
-        const cols = 31;
-        const grid = [];
-
-        for (let r = 0; r < rows; r++) {
-            for (let c = 0; c < cols; c++) {
-                const x = (c / cols) * 3.5 - 1.75;
-                const y = -((r / rows) * 3.5 - 1.5);
-                const equation = Math.pow((x * x + y * y - 1), 3) - (x * x * y * y * y);
-                const isInside = equation <= 0;
-                const level = isInside ? (Math.random() > 0.3 ? Math.ceil(Math.random() * 4) : 0) : -1;
-                grid.push({ id: `${r}-${c}`, isInside, level });
-            }
+    const { gridCells, totalCount } = useMemo(() => {
+        const contributions = new Map<string, number>();
+        let totalMemories = 0;
+        for (const memory of memories) {
+            const date = memory.date;
+            const count = memory.items.length;
+            contributions.set(date, (contributions.get(date) || 0) + count);
+            totalMemories += count;
         }
-        setMatrix(grid);
-    }, []); // Empty dependency array ensures this runs only once on the client
 
-    const totalCount = useMemo(() => {
-        return memories.reduce((sum, memory) => sum + memory.items.length, 0);
+        const year = new Date().getFullYear();
+        const isLeap = new Date(year, 1, 29).getDate() === 29;
+        const totalDays = isLeap ? 366 : 365;
+
+        const yearDates = [];
+        const startDate = new Date(year, 0, 1);
+        for (let i = 0; i < totalDays; i++) {
+            const d = new Date(startDate);
+            d.setDate(d.getDate() + i);
+            yearDates.push(d.toISOString().split('T')[0]);
+        }
+
+        const colors: { [key: number]: string } = { 0: 'bg-rose-100/50', 1: 'bg-rose-200', 2: 'bg-rose-300', 3: 'bg-rose-400', 4: 'bg-coral shadow-[0_0_8px_rgba(255,107,107,0.4)]' };
+        
+        let dayIndex = 0;
+        const cells = HEART_MAP.flat().map((cell, i) => {
+            if (cell === 0) {
+                return <div key={`empty-${i}`} />;
+            }
+            
+            if (dayIndex >= yearDates.length) return null; // Should not happen with a 357/365 map
+            
+            const date = yearDates[dayIndex];
+            const count = contributions.get(date) || 0;
+            dayIndex++;
+
+            let level = 0;
+            if (count > 0 && count <= 1) level = 1;
+            else if (count > 1 && count <= 2) level = 2;
+            else if (count > 2 && count <= 3) level = 3;
+            else if (count > 3) level = 4;
+            
+            const formattedDate = new Date(date).toLocaleDateString('en-US', {
+                year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' 
+            });
+            const contributionText = count === 1 ? '1 memory' : `${count || 'No'} memories`;
+
+            return (
+                <div key={date} className="relative group">
+                    <div className={`w-full h-full rounded-[2px] transition-all duration-200 ${colors[level]} cursor-pointer group-hover:scale-125 group-hover:shadow-lg group-hover:z-10`} />
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max px-3 py-1.5 bg-slate text-white text-xs font-bold rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-20">
+                        {contributionText} on {formattedDate}
+                        <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-slate"></div>
+                    </div>
+                </div>
+            );
+        });
+
+        return { gridCells: cells, totalCount: totalMemories };
+
     }, [memories]);
-
-    const colors: { [key: number]: string } = { '-1': 'opacity-0', 0: 'bg-rose-100/50', 1: 'bg-rose-200', 2: 'bg-rose-300', 3: 'bg-rose-400', 4: 'bg-coral shadow-[0_0_8px_rgba(255,107,107,0.4)]' };
     
     return (
         <div className="w-full max-w-4xl mx-auto px-4 z-20 relative mb-12">
@@ -53,10 +111,11 @@ const ContributionHero = ({ memories }: Props) => {
                     </div>
                     <p className="font-sans font-bold text-slate/30 text-xs md:text-sm tracking-[0.3em] uppercase mt-4">Beautiful Memories Together</p>
                 </div>
-                <div className="heart-grid">
-                    {matrix.map((cell) => (
-                        <div key={cell.id} className={`w-2 h-2 md:w-2.5 md:h-2.5 rounded-[2px] transition-all duration-300 ${colors[cell.level]} ${cell.isInside ? 'hover:scale-150 hover:z-20 cursor-pointer' : ''}`} />
-                    ))}
+                <div 
+                    className="grid gap-1 w-full"
+                    style={{ gridTemplateColumns: `repeat(${HEART_MAP[0].length}, minmax(0, 1fr))`, aspectRatio: `${HEART_MAP[0].length} / ${HEART_MAP.length}` }}
+                >
+                    {gridCells}
                 </div>
             </div>
         </div>

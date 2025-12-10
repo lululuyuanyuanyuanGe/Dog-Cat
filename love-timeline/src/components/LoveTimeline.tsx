@@ -83,6 +83,9 @@ export default function LoveTimeline({ initialMemories, initialComments }: LoveT
     // Initialize activeDate with the most recent date or today
     const [activeDate, setActiveDate] = useState(processedData[0]?.date || new Date().toISOString().split('T')[0]);
 
+    // Determine the year of the active date to drive the Heart Graph
+    const selectedYear = new Date(activeDate.replace(/-/g, '/')).getFullYear();
+
     // Safety check if processedData changed and activeDate is no longer valid
     const currentData = processedData.find((d: any) => d.date === activeDate) || { date: activeDate, items: [], comments: [] };
     const displayDate = new Date(activeDate.replace(/-/g,'/')).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
@@ -98,7 +101,9 @@ export default function LoveTimeline({ initialMemories, initialComments }: LoveT
             <header className="relative z-10 flex flex-col items-center">
                 <HeroHighlight user={CURRENT_USER} />
                 <LoveTimer startDate={START_DATE} />
-                <ContributionHero memories={processedData} />
+                
+                {/* Now driven by the selected year! */}
+                <ContributionHero memories={processedData} year={selectedYear} />
             </header>
 
             <div className="flex flex-col lg:flex-row gap-8 relative max-w-7xl mx-auto mt-4 z-10 px-4 md:px-8">

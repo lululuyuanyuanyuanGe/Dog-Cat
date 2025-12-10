@@ -10,6 +10,7 @@ interface Memory {
 
 interface Props {
     memories: Memory[];
+    year?: number; // Add year prop to control which year the graph displays
 }
 
 // SOLID HEART MAP (~390 pixels)
@@ -37,7 +38,10 @@ const SOLID_HEART_MAP = [
   [0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0]
 ];
 
-const ContributionHero = ({ memories }: Props) => {
+const ContributionHero = ({ memories, year }: Props) => {
+    // Default to current year if not provided
+    const selectedYear = year || new Date().getFullYear();
+
     const { gridCells, totalCount } = useMemo(() => {
         const contributions = new Map<string, number>();
         let totalMemories = 0;
@@ -47,22 +51,22 @@ const ContributionHero = ({ memories }: Props) => {
                 const date = memory.date;
                 const count = memory.items ? memory.items.length : 0;
                 contributions.set(date, (contributions.get(date) || 0) + count);
+                
+                // Only count total for the selected year? Or all time?
+                // Usually "Total" implies all time, but graph is per year.
+                // Let's count all time for the big number, but graph matches the year.
                 totalMemories += count;
             }
         }
-
-        const currentYear = new Date().getFullYear();
         
         // Count total active slots in the map
         const totalSlots = SOLID_HEART_MAP.flat().filter(cell => cell === 1).length;
 
         const dateList: string[] = [];
         
-        // Generate enough dates to fill the ENTIRE map
-        // Start: Jan 1 of Current Year
-        // End: Whenever we fill 'totalSlots' (likely spills into Next Year)
+        // Generate enough dates to fill the ENTIRE map starting from Jan 1 of SELECTED YEAR
         for (let i = 0; i < totalSlots; i++) {
-            const d = new Date(Date.UTC(currentYear, 0, 1)); 
+            const d = new Date(Date.UTC(selectedYear, 0, 1)); 
             d.setUTCDate(d.getUTCDate() + i);
             dateList.push(d.toISOString().split('T')[0]); 
         }
@@ -81,7 +85,6 @@ const ContributionHero = ({ memories }: Props) => {
                 return <div key={`spacer-${i}`} />;
             }
             
-            // We ALWAYS grab a date, because dateList is exactly as long as totalSlots
             const date = dateList[dayIndex];
             const count = contributions.get(date) || 0;
             dayIndex++;
@@ -98,8 +101,8 @@ const ContributionHero = ({ memories }: Props) => {
                 const formattedDate = new Date(Date.UTC(y, m-1, d)).toLocaleDateString('en-US', {
                     year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' 
                 });
-                const isNextYear = y > currentYear;
-                const yearLabel = isNextYear ? ` (${y})` : ''; // Show year only if it spills over
+                const isNextYear = y > selectedYear;
+                const yearLabel = isNextYear ? ` (${y})` : ''; 
                 
                 const contributionText = count === 1 ? '1 memory' : `${count || 'No'} memories`;
                 tooltipText = `${contributionText} on ${formattedDate}${yearLabel}`;
@@ -122,21 +125,26 @@ const ContributionHero = ({ memories }: Props) => {
 
         return { gridCells: cells, totalCount: totalMemories };
 
-    }, [memories]);
+    }, [memories, selectedYear]);
     
     return (
         <div className="w-full max-w-4xl mx-auto px-4 z-20 relative mb-12">
             <div className="glass-hero rounded-[3rem] p-8 md:p-12 flex flex-col items-center text-center relative overflow-hidden">
                 <div className="absolute top-0 w-32 h-1 bg-gradient-to-r from-coral to-rose-400 rounded-b-full"></div>
+                
+                {/* Header Stats */}
                 <div className="relative mb-8 z-10 mt-2">
                     <DoodleArrow />
-                    <span className="font-hand text-slate/40 text-lg md:text-xl block mb-1 -rotate-2">We created...</span>
+                    <span className="font-hand text-slate/40 text-lg md:text-xl block mb-1 -rotate-2">
+                        Memories in {selectedYear}
+                    </span>
                     <div className="relative inline-block">
                         <h2 className="text-6xl md:text-8xl font-display font-bold text-coral drop-shadow-sm tracking-tight leading-none">{totalCount.toLocaleString()}</h2>
                         <DoodleUnderline />
                     </div>
-                    <p className="font-sans font-bold text-slate/30 text-xs md:text-sm tracking-[0.3em] uppercase mt-4">Beautiful Memories Together</p>
                 </div>
+                
+                {/* Heart Grid */}
                 <div 
                     className="grid gap-[2px] w-full max-w-[550px]" 
                     style={{ 

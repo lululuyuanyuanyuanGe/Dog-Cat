@@ -8,13 +8,18 @@ interface NoteCardProps {
         time: string;
         [key: string]: any;
     };
+    onClick?: (e: React.MouseEvent) => void;
 }
 
-const NoteCard: React.FC<NoteCardProps> = ({ item }) => {
+const NoteCard: React.FC<NoteCardProps> = ({ item, onClick }) => {
     const style = getNoteStyle(item.id);
 
     return (
-        <div className={`p-6 h-full flex flex-col justify-between relative shadow-md hover:shadow-xl transition-transform hover:-translate-y-1 ${style.bg} ${style.rotate} hover:rotate-0`}>
+        <div 
+            className={`p-6 h-full flex flex-col justify-between relative shadow-md hover:shadow-xl transition-transform hover:-translate-y-1 ${style.bg} ${style.rotate} hover:rotate-0`}
+            onClick={onClick}
+            style={{ cursor: onClick ? 'zoom-in' : 'default' }}
+        >
             
             {/* Decorations */}
             {style.decoration === 'pin-red' && (
@@ -33,7 +38,7 @@ const NoteCard: React.FC<NoteCardProps> = ({ item }) => {
                 <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-8 h-8 border-4 border-slate-400 rounded-t-full z-20"></div>
             )}
 
-            <p className="font-hand text-slate-700 text-xl leading-relaxed opacity-90 mt-2 line-clamp-6">
+            <p className="font-hand text-slate-700 text-xl leading-relaxed opacity-90 mt-2 line-clamp-6 pointer-events-none">
                 "{item.content}"
             </p>
             

@@ -43,21 +43,24 @@ const ScrapbookItem: React.FC<ScrapbookItemProps> = ({ item, onDeleteOptimistic,
     const [showHeart, setShowHeart] = useState(false);
     const [showViewer, setShowViewer] = useState(false);
     
+    // Viewer State
+    const [viewerIndex, setViewerIndex] = useState(0);
+    
     // --- SMART LIKE LOGIC ---
     const [hasLiked, setHasLiked] = useState(false);
     const [localLikes, setLocalLikes] = useState(item.likes || 0);
     
     const likeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const serverLikedState = useRef(false); 
+    
+    // Click Discrimination Ref
+    const clickTimerRef = useRef<NodeJS.Timeout | null>(null);
 
     const getSpan = () => {
         if (item.size === 'large') return 'col-span-1 md:col-span-2 md:row-span-2';
         if (item.size === 'wide') return 'col-span-1 md:col-span-2';
-        
-        // Auto-sizing for albums
         if (item.media_urls && item.media_urls.length >= 3) return 'col-span-1 md:col-span-2 md:row-span-2';
         if (item.media_urls && item.media_urls.length === 2) return 'col-span-1 md:col-span-2';
-
         return 'col-span-1';
     };
 
@@ -79,10 +82,64 @@ const ScrapbookItem: React.FC<ScrapbookItemProps> = ({ item, onDeleteOptimistic,
         setShowDeleteModal(true);
     };
 
-    const handleCardClick = (e: React.MouseEvent) => {
-        if (item.type === 'photo' || item.type === 'video' || item.type === 'note') {
-            setShowViewer(true);
+    // Unified Interaction Logic
+    const triggerLike = () => {
+        // Cancel view timer if it's pending
+        if (clickTimerRef.current) {
+            clearTimeout(clickTimerRef.current);
+            clickTimerRef.current = null;
         }
+
+        const nextState = !hasLiked;
+        setHasLiked(nextState); 
+        localStorage.setItem(`liked_${item.id}`, String(nextState));
+        setLocalLikes(prev => nextState ? prev + 1 : Math.max(prev - 1, 0));
+
+        if (nextState) {
+            setShowHeart(true);
+            setTimeout(() => setShowHeart(false), 800);
+            onLikeOptimistic(item.id);
+        } else {
+            onUnlikeOptimistic(item.id);
+        }
+
+        if (likeTimeoutRef.current) clearTimeout(likeTimeoutRef.current);
+
+        likeTimeoutRef.current = setTimeout(async () => {
+            const currentServerState = serverLikedState.current;
+            if (nextState === currentServerState) return; 
+            try {
+                if (nextState) await fetch(`/api/memories/${item.id}/like`, { method: 'POST' });
+                else await fetch(`/api/memories/${item.id}/like`, { method: 'DELETE' });
+                serverLikedState.current = nextState;
+            } catch (error) { console.error("Like sync failed", error); }
+        }, 1000); 
+    };
+
+    // Handle Image/Content Click (Debounced)
+    const handleContentClick = (index: number = 0) => {
+        // If we are already waiting for a click, this is a double click!
+        if (clickTimerRef.current) {
+            clearTimeout(clickTimerRef.current);
+            clickTimerRef.current = null;
+            triggerLike(); // Trigger Like instead of View
+            return;
+        }
+
+        // Wait 250ms. If no second click, Open Viewer.
+        clickTimerRef.current = setTimeout(() => {
+            setViewerIndex(index);
+            setShowViewer(true);
+            clickTimerRef.current = null;
+        }, 250);
+    };
+
+    // Wrapper Double Click (Backstop for frame clicks)
+    const handleWrapperDoubleClick = (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        // If we clicked the frame (not content), this fires naturally.
+        triggerLike();
     };
 
     const executeDelete = async () => {
@@ -92,56 +149,10 @@ const ScrapbookItem: React.FC<ScrapbookItemProps> = ({ item, onDeleteOptimistic,
             const res = await fetch(`/api/memories/${item.id}`, { method: 'DELETE' });
             if (!res.ok) throw new Error('Failed to delete');
             router.refresh();
-        } catch (err) {
-            console.error(err);
-            alert('Could not delete memory.');
-            window.location.reload(); 
-        }
+        } catch (err) { console.error(err); alert('Could not delete memory.'); window.location.reload(); }
     };
 
-    const handleDoubleClick = (e: React.MouseEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        
-        // 1. Calculate New State
-        const nextState = !hasLiked;
-        setHasLiked(nextState); 
-        localStorage.setItem(`liked_${item.id}`, String(nextState));
-
-        // 2. Local Visual Update
-        setLocalLikes(prev => nextState ? prev + 1 : Math.max(prev - 1, 0));
-
-        // 3. Animation
-        if (nextState) {
-            setShowHeart(true);
-            setTimeout(() => setShowHeart(false), 800);
-        }
-
-        // 4. Debounce Server Sync
-        if (likeTimeoutRef.current) {
-            clearTimeout(likeTimeoutRef.current);
-        }
-
-        likeTimeoutRef.current = setTimeout(async () => {
-            const currentServerState = serverLikedState.current;
-            if (nextState === currentServerState) return; 
-
-            try {
-                if (nextState) {
-                    await fetch(`/api/memories/${item.id}/like`, { method: 'POST' });
-                } else {
-                    await fetch(`/api/memories/${item.id}/like`, { method: 'DELETE' });
-                }
-                serverLikedState.current = nextState;
-            } catch (error) {
-                console.error("Like sync failed", error);
-            }
-        }, 1000); 
-    };
-
-    if (isDeleting) {
-        return null;
-    }
+    if (isDeleting) return null;
 
     const images = item.media_urls && item.media_urls.length > 0 ? item.media_urls : (item.src ? [item.src] : []);
     const noteStyle = item.type === 'note' ? getNoteStyle(item.id) : null;
@@ -149,10 +160,9 @@ const ScrapbookItem: React.FC<ScrapbookItemProps> = ({ item, onDeleteOptimistic,
     return (
         <>
             <div
-                className={`relative group transition-all duration-300 ${getSpan()}`}
+                className={`relative group transition-all duration-300 ${getSpan()} select-none`} // ADDED select-none
                 style={{ transform: `rotate(${rotation}deg)` }}
-                onDoubleClick={handleDoubleClick}
-                onClick={handleCardClick}
+                onDoubleClick={handleWrapperDoubleClick}
             >
                 <div className="w-full h-full hover:scale-[1.02] hover:rotate-0 transition-transform duration-300 ease-out hover:z-10 relative cursor-pointer">
                     
@@ -205,10 +215,14 @@ const ScrapbookItem: React.FC<ScrapbookItemProps> = ({ item, onDeleteOptimistic,
                         )}
                     </AnimatePresence>
 
-                    {item.type === 'photo' && <PhotoCard item={item} />}
-                    {item.type === 'note' && <NoteCard item={item} />}
-                    {item.type === 'video' && <VideoCard item={item} />}
+                    {/* Content Components - Pass handleContentClick */}
+                    {item.type === 'photo' && <PhotoCard item={item} onClick={(index) => handleContentClick(index)} />}
+                    {item.type === 'note' && <NoteCard item={item} onClick={() => handleContentClick(0)} />}
+                    
+                    {/* Video/PDF need handlers if they support view logic */}
+                    {item.type === 'video' && <VideoCard item={item} />} 
                     {item.type === 'pdf' && <PdfCard item={item} />}
+                    
                     {item.type === 'audio' && (
                         <div className="w-full h-full bg-white rounded-2xl shadow-sm p-4 flex items-center justify-center border border-slate-100">
                             <span className="text-slate-400 text-xs font-mono">Audio Clip</span>
@@ -230,7 +244,8 @@ const ScrapbookItem: React.FC<ScrapbookItemProps> = ({ item, onDeleteOptimistic,
                 content={item.content}
                 mediaUrls={images}
                 time={item.time} 
-                bg={noteStyle?.bg} // Use calculated style
+                bg={noteStyle?.bg} 
+                initialIndex={viewerIndex} // Pass index
             />
         </>
     );

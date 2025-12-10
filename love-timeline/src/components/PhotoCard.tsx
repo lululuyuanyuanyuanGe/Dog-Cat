@@ -12,7 +12,7 @@ interface PhotoCardProps {
             text: string;
         };
     };
-    onClick?: (e: React.MouseEvent) => void;
+    onClick?: (index: number) => void; // Changed signature
 }
 
 const STYLES = [
@@ -29,14 +29,16 @@ const PhotoCard: React.FC<PhotoCardProps> = ({ item, onClick }) => {
     const images = item.media_urls && item.media_urls.length > 0 ? item.media_urls : [item.src];
     const isMulti = images.length > 1;
 
+    const handleClick = (e: React.MouseEvent, index: number) => {
+        // We let parent handle stopPropagation if needed, but here we just pass index
+        onClick?.(index);
+    };
+
     return (
         <div className={`h-full w-full relative shadow-md hover:shadow-xl transition-shadow pb-12 duration-300 group ${style.border} ${style.rotate} hover:rotate-0`}>
             {style.tape && <WashiTape className={`-top-3 ${seed % 2 === 0 ? 'left-10' : 'right-10'} rotate-[-2deg]`} />}
             
-            <div 
-                className="w-full h-full overflow-hidden relative bg-gray-100 cursor-zoom-in"
-                onClick={onClick}
-            >
+            <div className="w-full h-full overflow-hidden relative bg-gray-100 cursor-zoom-in">
                 {isMulti ? (
                     <div className={`grid h-full w-full gap-[2px] ${
                         images.length === 2 ? 'grid-cols-2' : 
@@ -44,9 +46,13 @@ const PhotoCard: React.FC<PhotoCardProps> = ({ item, onClick }) => {
                         'grid-cols-2 grid-rows-2'
                     }`}>
                         {images.slice(0, 4).map((img, i) => (
-                            <div key={i} className={`relative overflow-hidden ${
-                                images.length === 3 && i === 0 ? 'row-span-2' : ''
-                            }`}>
+                            <div 
+                                key={i} 
+                                className={`relative overflow-hidden ${
+                                    images.length === 3 && i === 0 ? 'row-span-2' : ''
+                                }`}
+                                onClick={(e) => handleClick(e, i)}
+                            >
                                 <img src={img} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
                                 {i === 3 && images.length > 4 && (
                                     <div className="absolute inset-0 bg-black/50 flex items-center justify-center text-white font-bold text-lg">
@@ -57,7 +63,11 @@ const PhotoCard: React.FC<PhotoCardProps> = ({ item, onClick }) => {
                         ))}
                     </div>
                 ) : (
-                    <img src={images[0]} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                    <img 
+                        src={images[0]} 
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
+                        onClick={(e) => handleClick(e, 0)}
+                    />
                 )}
             </div>
 

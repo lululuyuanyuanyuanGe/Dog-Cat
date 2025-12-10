@@ -35,27 +35,29 @@ export default function MemoryViewer({ isOpen, onClose, type, content, mediaUrls
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+        <div 
+            className="fixed inset-0 z-[300] flex items-center justify-center p-4 cursor-zoom-out"
+            onClick={onClose} // Clicking anywhere closes by default
+        >
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={onClose}
             className="absolute inset-0 bg-black/60 backdrop-blur-md"
           />
 
-          {/* Controls */}
-          <button onClick={onClose} className="absolute top-4 right-4 text-white/50 hover:text-white z-50 p-2">
+          {/* Controls - Stop propagation so clicking buttons doesn't close */}
+          <button onClick={(e) => { e.stopPropagation(); onClose(); }} className="absolute top-4 right-4 text-white/50 hover:text-white z-50 p-2 cursor-pointer">
             <X size={32} />
           </button>
 
           {type === 'photo' && mediaUrls.length > 1 && (
             <>
-              <button onClick={prev} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/50 hover:text-white z-50 p-4 rounded-full hover:bg-white/10 transition-colors">
+              <button onClick={prev} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/50 hover:text-white z-50 p-4 rounded-full hover:bg-white/10 transition-colors cursor-pointer">
                 <ChevronLeft size={40} />
               </button>
-              <button onClick={next} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/50 hover:text-white z-50 p-4 rounded-full hover:bg-white/10 transition-colors">
+              <button onClick={next} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/50 hover:text-white z-50 p-4 rounded-full hover:bg-white/10 transition-colors cursor-pointer">
                 <ChevronRight size={40} />
               </button>
             </>
@@ -68,11 +70,16 @@ export default function MemoryViewer({ isOpen, onClose, type, content, mediaUrls
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="relative z-40 max-w-5xl w-full flex items-center justify-center p-4"
-            onClick={(e) => e.stopPropagation()} 
+            className="relative z-40 max-w-5xl w-full flex items-center justify-center p-4 pointer-events-none" 
+            // Wrapper catches clicks? No, let clicks pass through padding to parent.
+            // We use pointer-events-none to let clicks pass through the flex container areas?
+            // But we need children to have pointer-events-auto.
           >
             {type === 'photo' && mediaUrls[index] && (
-                <div className="relative">
+                <div 
+                    className="relative pointer-events-auto cursor-default"
+                    onClick={(e) => e.stopPropagation()} // Stop closing when clicking image
+                >
                     <img 
                         src={mediaUrls[index]} 
                         alt="Memory" 
@@ -89,12 +96,11 @@ export default function MemoryViewer({ isOpen, onClose, type, content, mediaUrls
 
             {type === 'note' && (
                 <div 
-                    className={`relative p-12 md:p-16 rounded-sm shadow-2xl max-w-2xl w-full rotate-1 flex flex-col ${bg || 'bg-white'}`} 
+                    className={`relative p-12 md:p-16 rounded-sm shadow-2xl max-w-2xl w-full rotate-1 flex flex-col ${bg || 'bg-white'} pointer-events-auto cursor-default`} 
+                    onClick={(e) => e.stopPropagation()} // Stop closing when clicking note
                 >
-                    {/* Pin - Matches NoteCard */}
                     <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full bg-red-400 shadow-md z-20 border-4 border-white/50"></div>
 
-                    {/* Content */}
                     <div className="relative z-10 flex flex-col items-center">
                         <Quote className="text-black/5 w-12 h-12 absolute -top-4 -left-4 -scale-x-100" />
                         
@@ -104,7 +110,6 @@ export default function MemoryViewer({ isOpen, onClose, type, content, mediaUrls
                         
                         <Quote className="text-black/5 w-12 h-12 absolute -bottom-4 -right-4" />
 
-                        {/* Footer Time */}
                         {time && (
                             <div className="mt-12 pt-6 border-t border-black/5 w-full flex justify-end">
                                 <span className="font-mono text-sm text-slate/40">{time}</span>

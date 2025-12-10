@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.no-scrollbar::-webkit-scrollbar { 
+    display: none; 
+}
+
+@layer base {
+    body {
+        background-color: #FFF9F5;
+        overflow-x: hidden;
+    }
+}
+
+@layer components {
+    .heart-grid {
+        display: grid;
+        grid-template-columns: repeat(31, 1fr);
+        gap: 4px;
+        width: fit-content;
+        margin: 0 auto;
+    }
+
+    .blob {
+        position: fixed;
+        filter: blur(80px);
+        z-index: -1;
+        opacity: 0.6;
+    }
+
+    .glass-hero {
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.9);
+        box-shadow: 0 10px 40px -10px rgba(255, 107, 107, 0.15);
+    }
+
+    .washi-tape {
+        background-color: rgba(255, 255, 255, 0.4);
+        background-image: linear-gradient(90deg, transparent 50%, rgba(255,255,255,0.5) 50%);
+        background-size: 10px 10px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        backdrop-filter: blur(5px);
+        opacity: 0.8;
+    }
+
+    .paper-fold {
+        clip-path: polygon(0 0, 100% 0, 100% 85%, 85% 100%, 0 100%);
+    }
+
+    .paper-corner {
+        position: absolute;
+        bottom: 0;
+        right: 0;
+        width: 15%;
+        height: 15%;
+        background: linear-gradient(135deg, transparent 50%, rgba(0,0,0,0.1) 50%);
+        border-top: 1px solid rgba(0,0,0,0.1);
+        border-left: 1px solid rgba(0,0,0,0.1);
+        border-radius: 4px 0 0 0;
+    }
+
+    .sticker-dash {
+        background-image: url("data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='100%25' height='100%25' fill='none' rx='999' ry='999' stroke='%23FFD6E0' stroke-width='2' stroke-dasharray='6%2c 6' stroke-dashoffset='0' stroke-linecap='square'/%3e%3c/svg%3e");
+    }
+}

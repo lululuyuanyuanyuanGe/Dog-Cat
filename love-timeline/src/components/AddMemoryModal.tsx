@@ -7,15 +7,15 @@ import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import DatePicker from '@/components/DatePicker';
 
-// Updated to match the new DB schema (Audio instead of Music)
 type MemoryType = 'photo' | 'video' | 'note' | 'audio' | 'pdf';
 
 interface AddMemoryModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onAddOptimistic: (newMemory: any) => void;
 }
 
-export default function AddMemoryModal({ isOpen, onClose }: AddMemoryModalProps) {
+export default function AddMemoryModal({ isOpen, onClose, onAddOptimistic }: AddMemoryModalProps) {
   const router = useRouter();
   const supabase = createSupabaseBrowserClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -23,15 +23,21 @@ export default function AddMemoryModal({ isOpen, onClose }: AddMemoryModalProps)
   const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [type, setType] = useState<MemoryType>('photo');
   const [content, setContent] = useState('');
-  const [file, setFile] = useState<File | null>(null);
+  
+  const [files, setFiles] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files);
+      setFiles(prev => [...prev, ...newFiles]);
     }
+  };
+
+  const removeFile = (index: number) => {
+    setFiles(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -40,74 +46,104 @@ export default function AddMemoryModal({ isOpen, onClose }: AddMemoryModalProps)
     setIsSaving(true);
 
     try {
-      let media_url = null;
+      // 1. NOTES
+      if (type === 'note') {
+          // Optimistic update for note
+          const tempId = `temp-${Date.now()}`;
+          const newNote = {
+              id: tempId,
+              date,
+              type,
+              content,
+              media_url: null,
+              created_at: new Date().toISOString(),
+              metadata: {}
+          };
+          onAddOptimistic(newNote); // Instant UI update
+          onClose(); // Close immediately
 
-      // 1. Upload File (if applicable)
-      // Note: 'note' type generally doesn't have a file, but others do.
-      if (type !== 'note' && file) {
-        setIsUploading(true);
-        
-        // Sanitize filename to avoid issues
-        const fileExt = file.name.split('.').pop();
-        const safeFileName = file.name.replace(/[^a-zA-Z0-9]/g, '_');
-        const fileName = `${Date.now()}-${safeFileName}.${fileExt}`;
-        const filePath = `${type}s/${fileName}`; // e.g., photos/123_abc.jpg
+          // Background Save
+          const res = await fetch('/api/memories', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ date, type, content, media_url: null, metadata: {} }),
+          });
+          if (!res.ok) throw new Error('Failed to save note');
+          router.refresh();
+      } 
+      // 2. MEDIA (Parallel Uploads)
+      else {
+          if (files.length === 0) throw new Error('Please select at least one file.');
 
-        const { error: uploadError } = await supabase.storage
-          .from('LoveTimelineMedias') // Ensure this bucket exists in Supabase
-          .upload(filePath, file);
+          setIsUploading(true);
+          
+          // Generate Temp Optimistic Items immediately
+          const tempMemories = files.map((file, i) => ({
+              id: `temp-${Date.now()}-${i}`,
+              date,
+              type,
+              content,
+              media_url: URL.createObjectURL(file), // Show local blob instantly
+              created_at: new Date().toISOString(),
+              metadata: { original_filename: file.name, size: file.size, mime_type: file.type }
+          }));
 
-        if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
+          // Show them instantly
+          tempMemories.forEach(m => onAddOptimistic(m));
+          onClose(); // Close modal immediately so user can continue using app
 
-        // Get Public URL
-        const { data: { publicUrl } } = supabase.storage
-          .from('LoveTimelineMedias')
-          .getPublicUrl(filePath);
+          // Perform Uploads & Saves in Background
+          await Promise.all(files.map(async (file) => {
+              const fileExt = file.name.split('.').pop();
+              const safeFileName = file.name.replace(/[^a-zA-Z0-9]/g, '_');
+              const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}-${safeFileName}.${fileExt}`;
+              const filePath = `${type}s/${fileName}`;
 
-        media_url = publicUrl;
-        setIsUploading(false);
+              // A. Upload
+              const { error: uploadError } = await supabase.storage
+                .from('LoveTimelineMedias')
+                .upload(filePath, file);
+
+              if (uploadError) console.error(`Upload failed for ${file.name}:`, uploadError);
+
+              const { data: { publicUrl } } = supabase.storage
+                .from('LoveTimelineMedias')
+                .getPublicUrl(filePath);
+
+              // B. Save to DB
+              await fetch('/api/memories', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  date,
+                  type,
+                  content,
+                  media_url: publicUrl,
+                  metadata: {
+                    original_filename: file.name,
+                    size: file.size,
+                    mime_type: file.type
+                  }
+                }),
+              });
+          }));
+
+          router.refresh(); // Refresh to get real IDs and URLs
       }
 
-      // 2. Save Memory to DB via API
-      const res = await fetch('/api/memories', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          date,
-          type,
-          content,
-          media_url,
-          metadata: {
-            original_filename: file?.name,
-            size: file?.size,
-            mime_type: file?.type
-          }
-        }),
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || 'Failed to save memory');
-      }
-
-      // 3. Success
-      router.refresh(); // Refresh server components to show new data
-      onClose();
-      // Reset form
       setContent('');
-      setFile(null);
-      // We keep the date as is, usually user wants to add more for same day or just close.
+      setFiles([]);
       
     } catch (err: any) {
       console.error(err);
       setError(err.message);
+      // In a real app, we might want to "rollback" the optimistic update here if it failed
     } finally {
       setIsUploading(false);
       setIsSaving(false);
     }
   };
 
-  // Helper to render type selector
   const TypeButton = ({ t, icon: Icon, label }: { t: MemoryType; icon: any; label: string }) => (
     <button
       type="button"
@@ -123,7 +159,6 @@ export default function AddMemoryModal({ isOpen, onClose }: AddMemoryModalProps)
     </button>
   );
 
-  // Helper to determine accepted file types
   const getAcceptedFileTypes = () => {
     switch (type) {
       case 'photo': return 'image/*';
@@ -138,7 +173,6 @@ export default function AddMemoryModal({ isOpen, onClose }: AddMemoryModalProps)
     <AnimatePresence>
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -147,15 +181,13 @@ export default function AddMemoryModal({ isOpen, onClose }: AddMemoryModalProps)
             className="absolute inset-0 bg-slate-900/20 backdrop-blur-sm"
           />
 
-          {/* Modal Content */}
           <motion.div
             initial={{ scale: 0.95, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.95, opacity: 0, y: 20 }}
-            className="relative w-full max-w-lg bg-cream/90 backdrop-blur-xl border border-white/50 shadow-2xl rounded-3xl overflow-visible"
+            className="relative w-full max-w-lg bg-cream/90 backdrop-blur-xl border border-white/50 shadow-2xl rounded-3xl overflow-visible max-h-[90vh] overflow-y-auto"
           >
-            {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-white/20 bg-white/30">
+            <div className="flex items-center justify-between p-6 border-b border-white/20 bg-white/30 sticky top-0 z-10 backdrop-blur-md">
               <h2 className="text-xl font-bold font-clash text-slate-700">Add New Memory</h2>
               <button onClick={onClose} className="p-2 hover:bg-white/50 rounded-full transition-colors">
                 <X size={20} className="text-slate-500" />
@@ -163,7 +195,6 @@ export default function AddMemoryModal({ isOpen, onClose }: AddMemoryModalProps)
             </div>
 
             <form onSubmit={handleSubmit} className="p-6 space-y-6">
-              {/* Type Selection */}
               <div className="grid grid-cols-5 gap-2">
                 <TypeButton t="photo" icon={ImageIcon} label="Photo" />
                 <TypeButton t="video" icon={Video} label="Video" />
@@ -172,17 +203,15 @@ export default function AddMemoryModal({ isOpen, onClose }: AddMemoryModalProps)
                 <TypeButton t="pdf" icon={File} label="PDF" />
               </div>
 
-              {/* Date & Content */}
               <div className="space-y-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Date</label>
-                  {/* Custom Date Picker Replacement */}
                   <DatePicker value={date} onChange={setDate} />
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
-                    {type === 'note' ? 'Message' : 'Caption'}
+                    {type === 'note' ? 'Message' : 'Caption (Applied to all)'}
                   </label>
                   <textarea
                     rows={type === 'note' ? 4 : 2}
@@ -193,16 +222,39 @@ export default function AddMemoryModal({ isOpen, onClose }: AddMemoryModalProps)
                   />
                 </div>
 
-                {/* File Upload (Hidden for Note type) */}
                 {type !== 'note' && (
                   <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
-                        {type === 'audio' ? 'Voice/Audio File' : 'Media File'}
+                        {type === 'audio' ? 'Voice/Audio Files' : 'Media Files'}
                     </label>
+                    
+                    {files.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mb-3">
+                            {files.map((f, i) => (
+                                <div key={i} className="relative group/file">
+                                    <div className="w-16 h-16 rounded-lg bg-white border border-slate-200 overflow-hidden flex items-center justify-center">
+                                        {f.type.startsWith('image/') ? (
+                                            <img src={URL.createObjectURL(f)} className="w-full h-full object-cover" alt="preview" />
+                                        ) : (
+                                            <span className="text-[10px] text-slate-500 font-mono p-1 text-center break-all">{f.name.slice(0, 10)}...</span>
+                                        )}
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => removeFile(i)}
+                                        className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 shadow-sm opacity-0 group-hover/file:opacity-100 transition-opacity"
+                                    >
+                                        <X size={10} />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
                     <div
                       onClick={() => fileInputRef.current?.click()}
                       className={`border-2 border-dashed rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer transition-all ${
-                        file ? 'border-coral bg-coral/5' : 'border-slate-300 hover:border-coral/50 hover:bg-white/50'
+                        files.length > 0 ? 'border-coral/50 bg-coral/5' : 'border-slate-300 hover:border-coral/50 hover:bg-white/50'
                       }`}
                     >
                       <input
@@ -211,31 +263,23 @@ export default function AddMemoryModal({ isOpen, onClose }: AddMemoryModalProps)
                         accept={getAcceptedFileTypes()}
                         onChange={handleFileChange}
                         className="hidden"
+                        multiple
                       />
-                      {file ? (
-                        <div className="text-center">
-                          <p className="text-sm font-medium text-coral">{file.name}</p>
-                          <p className="text-xs text-slate-500">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
-                        </div>
-                      ) : (
-                        <>
-                          <Upload size={24} className="text-slate-400 mb-2" />
-                          <p className="text-sm text-slate-500">Click to upload {type}</p>
-                        </>
-                      )}
+                      <Upload size={24} className="text-slate-400 mb-2" />
+                      <p className="text-sm text-slate-500">
+                          {files.length > 0 ? 'Add more files' : `Click to upload ${type}s`}
+                      </p>
                     </div>
                   </div>
                 )}
               </div>
 
-              {/* Error Message */}
               {error && (
                 <div className="p-3 bg-red-50 text-red-500 text-sm rounded-lg border border-red-100">
                   {error}
                 </div>
               )}
 
-              {/* Footer Actions */}
               <div className="flex justify-end pt-2">
                 <button
                   type="button"
@@ -246,13 +290,13 @@ export default function AddMemoryModal({ isOpen, onClose }: AddMemoryModalProps)
                 </button>
                 <button
                   type="submit"
-                  disabled={isSaving || (type !== 'note' && !file)}
+                  disabled={isSaving || (type !== 'note' && files.length === 0)}
                   className="bg-coral text-white px-6 py-2 rounded-xl font-bold shadow-lg shadow-coral/20 hover:shadow-coral/40 hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                 >
                   {(isUploading || isSaving) ? (
                     <>
                       <Loader2 size={18} className="animate-spin mr-2" />
-                      {isUploading ? 'Uploading...' : 'Saving...'}
+                      {isUploading ? `Processing ${files.length}...` : 'Add Memory'}
                     </>
                   ) : (
                     'Add Memory'

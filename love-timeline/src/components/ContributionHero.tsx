@@ -52,10 +52,11 @@ const ContributionHero = ({ memories, year }: Props) => {
                 const count = memory.items ? memory.items.length : 0;
                 contributions.set(date, (contributions.get(date) || 0) + count);
                 
-                // Only count total for the selected year? Or all time?
-                // Usually "Total" implies all time, but graph is per year.
-                // Let's count all time for the big number, but graph matches the year.
-                totalMemories += count;
+                // Only count total for the selected year
+                const memoryYear = parseInt(date.split('-')[0]);
+                if (memoryYear === selectedYear) {
+                    totalMemories += count;
+                }
             }
         }
         

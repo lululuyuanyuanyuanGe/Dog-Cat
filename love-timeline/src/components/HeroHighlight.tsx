@@ -31,7 +31,7 @@ const HeroHighlight = ({ user }: Props) => (
             <div className="text-center relative">
                 <DoodleArrow />
                 <h1 className="font-display font-bold text-6xl md:text-8xl text-transparent bg-clip-text bg-gradient-to-r from-coral via-rose-500 to-orange-400 tracking-tighter drop-shadow-sm leading-tight">
-                    LOVE YOU <br className="md:hidden" /> 1314
+                    luyuan & Claire<br className="md:hidden" /> 
                 </h1>
                 <div className="inline-block relative mt-2">
                     <p className="font-hand text-slate/50 text-lg md:text-xl rotate-[-2deg]">( One Life, One Love, Forever )</p>

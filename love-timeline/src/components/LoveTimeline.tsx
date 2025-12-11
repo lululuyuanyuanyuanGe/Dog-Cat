@@ -76,7 +76,8 @@ export default function LoveTimeline({ initialMemories, initialComments, partner
         return {
             avatar: p1?.avatar_url || PLACEHOLDER_AVATAR,
             partnerAvatar: p2?.avatar_url || PLACEHOLDER_AVATAR,
-            name: p1?.display_name || "Partner 1"
+            name1: p1?.display_name || "Partner 1",                                                                
+            name2: p2?.display_name || "Partner 2",
         };
     }, [partners]);
 

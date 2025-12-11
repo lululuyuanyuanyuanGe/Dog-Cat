@@ -71,14 +71,16 @@ const ProfileWidget = ({ initialUser, onUserChange }: Props) => {
     }, [supabase, router]);
 
     const handleLogout = async () => {
-        const { error } = await supabase.auth.signOut();
-        if (error) {
+        // Optimistic UI update: Clear user immediately
+        setIsOpen(false);
+        setUser(null);
+        
+        try {
+            await supabase.auth.signOut();
+            router.refresh();
+        } catch (error) {
             console.error("Logout error:", error);
         }
-        // Force update local state immediately to reflect UI change
-        setUser(null);
-        setIsOpen(false);
-        router.refresh();
     };
 
     if (!user) {

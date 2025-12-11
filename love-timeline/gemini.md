@@ -1,65 +1,49 @@
-# Gemini Project Analysis: Love-Timeline
+# Gemini Development Session Summary: Love-Timeline
 
 ## 1. Project Overview
-**Project 1314** is an interactive digital scrapbook for couples, focusing on a "Scrapbook Scatter" aesthetic and "Kawaii Maximalism" design. It allows couples to upload memories and guests to view and leave messages.
+We have successfully transformed the initial prototype into a fully functional, database-backed application. The focus of this session was on stabilizing the codebase, refining the "Scrapbook" aesthetic, ensuring data persistence, and polishing the user experience for both guests and authenticated partners.
 
-## 2. Technology Stack (as per PRD)
-*   **Frontend:** Next.js 14+ (App Router), TypeScript, Tailwind CSS, Framer Motion, Lucide React.
-*   **Backend & Infrastructure (Serverless):** Next.js API Routes, PostgreSQL (via Supabase), Supabase Auth, Supabase Storage.
-*   **Deployment:** Vercel.
+## 2. Key Features Implemented
 
-## 3. Implementation Analysis (based on `src/love-story.html`)
+### A. Core Memory Management
+*   **Persistent Styling:** Implemented a robust system to generate and save unique visual styles for notes. The `styleId` is generated at creation, stored in Supabase `metadata`, and retrieved on load, eliminating style flickering.
+*   **Batch Grouping:** Replaced the time-based grouping logic with a strict `batchId` system. Photos uploaded together are now guaranteed to stay grouped, while separate uploads remain distinct.
+*   **Upload Limits:** Enforced constraints in `AddMemoryModal` (Max 5 photos, 1 video, 3 PDFs, 1 Audio) to maintain performance and UI integrity.
+*   **Cascade Deletion:** Deleting the last memory of a specific date now automatically cleans up all associated comments for that day via a new bulk-delete API.
 
-The `src/love-story.html` file appears to be a standalone HTML file that directly embeds React, ReactDOM, Babel, and Tailwind CSS via CDN. This is a significant deviation from the PRD's specified technology stack (Next.js 14+ with TypeScript).
+### B. "Scrapbook" Aesthetic & UI Polish
+*   **Expanded Styles:**
+    *   **Notes:** Created 15 distinct, high-contrast themes (Lined, Graph, Chalkboard, Blueprint, Origami, etc.) using advanced CSS backgrounds and clip-paths.
+    *   **Photos:** Added 10 artistic frame styles (Polaroid, Film Strip, Neon, Grunge, etc.).
+    *   **Visibility:** Fixed "invisible text" issues by ensuring solid backgrounds, removing text transparency, and adding drop shadows/bold weights for thin handwritten fonts in card mode.
+*   **Unified View Mode:** Refactored `NoteCard` and `MemoryViewer` to share a single `NoteContent` component. This ensures the zoomed-in view is a perfect, high-fidelity enlargement of the timeline card.
+*   **Interactive Heart Map:** Centered the Contribution Hero visualization by balancing the padding in the underlying data map.
 
-### Observed Technologies in `love-story.html`:
-*   **Frontend Framework:** React (via CDN), directly embedded.
-*   **Language:** JavaScript (with Babel for JSX transformation), not TypeScript.
-*   **Styling:** Tailwind CSS (via CDN) with in-page configuration.
-*   **Animations:** Custom CSS animations (`animate-float`, `animate-pulse-slow`) are present, but Framer Motion (specified in PRD) is not used.
-*   **Icons:** Custom SVG `Icon` component is implemented, with hardcoded SVG paths. Lucide React (specified in PRD) is not used.
+### C. Authentication & Privacy
+*   **Visitor Restrictions:**
+    *   Guests cannot see "Delete" buttons (trash icons) on memories or comments.
+    *   Clicking "Add Memory" as a guest triggers a stylish `LoginModal` instead of the upload form.
+*   **Profile Widget Optimization:**
+    *   Removed the "flicker" where the widget would briefly show a partner's profile before checking the actual session.
+    *   Implemented an `isLoading` state to prevent the "Sign In" button from flashing for logged-in users.
+    *   Decoupled UI updates from network requests for instant "Log Out" feedback.
 
-### Key UI/UX Elements and Implementation Status:
+### D. Comments System
+*   **Full CRUD:** Implemented API routes for single comment deletion (`DELETE /api/comments/[id]`) and bulk deletion (`DELETE /api/comments?date=...`).
+*   **UI Integration:** Added a conditional Delete button to comments in `LoveTimeline`, visible only to the author/owner.
 
-#### 3.1. Hero & Header Section
-*   **Couple Connection Visual:** Implemented with two avatar images connected by a dashed line and a pulsating heart (`HeroHighlight` component).
-*   **"1314" Typography:** Implemented with gradient text (`LOVE YOU 1314`) and a handwritten subtitle (`DoodleUnderline`, `DoodleArrow` components for decorative SVG elements).
-*   **Profile Widget (Fixed):** Implemented as a fixed-position glassmorphic capsule with user avatar and name (`ProfileWidget` component). It has a dropdown menu with "Settings" and "Log Out" options.
+## 3. Technical Refactoring & Bug Fixes
+*   **Tailwind Config:** Added `src/lib` to `content` paths to ensure dynamic style classes (e.g., `bg-blue-600`) are correctly generated.
+*   **Z-Index Fixes:** Resolved an issue where the delete button on photo cards was unclickable by raising the overlay's z-index to `50`.
+*   **Auto-Scroll Logic:** Prevented the timeline from jarringly scrolling to the active date on initial page load using a `useRef` tracker.
+*   **Timezone Handling:** Updated the timeline to default to the user's *local* "Today" instead of UTC, preventing "Yesterday" bugs for users in eastern time zones.
+*   **Click Handling:** Fixed the "Click Outside to Close" bug in `MemoryViewer` by properly managing event propagation.
 
-#### 3.2. Data Visualization Stats
-*   **Love Timer:** Implemented with four cards (Days, Hours, Mins, Secs) with real-time updates (`LoveTimer` component).
-*   **Contribution Heart Map:** A grid of dots arranged into a heart shape is implemented. The heatmap logic (dots changing opacity/color) and total memory counter are present (`ContributionHero` component).
+## 4. Deployment Readiness
+The application is now stable, feature-complete for the current scope, and visually polished.
 
-#### 3.3. Navigation (The Timeline)
-*   **Structure:** Hierarchical Tree (Year → Month → Day) is present (`TimelineTree` component).
-*   **Behavior:** It's a sticky sidebar for larger screens. Mobile responsiveness (hamburger menu) is mentioned in the PRD but not fully implemented in this static HTML file (it only hides the left rail).
-
-#### 3.4. The Memory Feed (Main Content)
-*   **Day Header:** Displays the selected date and includes a placeholder for daily badges.
-*   **"Scrapbook" Grid Layout:** Items have randomized slight rotations.
-*   **Item Types:**
-    *   **Photo Card:** Implemented with a "Washi Tape" effect.
-    *   **Note Card:** Implemented with a pin visual and handwritten font.
-    *   **Video Card:** Implemented with a play button overlay and film-strip-like borders (using CSS backgrounds).
-    *   **Music Card:** Not explicitly found in the provided HTML.
-    *   **PDF/Document Card:** Implemented with a file folder styling, paperclip icon, and "View File" button.
-*   **Timestamps:** Present on note cards and implicitly supported for other types.
-
-#### 3.5. Social & Engagement
-*   **Guestbook (Per Day):** Implemented with a list view for comments and an input field for new messages.
-*   **Background Decorations:** Floating stickers (`FloatingSticker`) and gradient blobs (`BackgroundBlobs`) are implemented with fixed positioning and animations.
-
-## 4. Discrepancies / Observations
-*   **Technology Stack Mismatch:** The most significant observation is the use of plain React/ReactDOM directly embedded via CDNs and Babel for JSX, instead of the Next.js 14+ (App Router) with TypeScript as specified in the PRD. This implies the current `love-story.html` is a prototype or a very early stage implementation not yet integrated into the intended Next.js environment.
-*   **Styling:** Tailwind CSS is correctly implemented and configured.
-*   **Animations:** Custom CSS keyframe animations are used instead of Framer Motion.
-*   **Icons:** Custom SVG `Icon` component is used instead of Lucide React.
-*   **Data Source:** Mock data (`RAW_DATA`) is hardcoded in the JavaScript, confirming that backend integration (Supabase/PostgreSQL) is still pending as per PRD Phase 3.
-*   **Mobile Responsiveness:** While the PRD outlines a mobile strategy, the `love-story.html` focuses primarily on the desktop layout, with the mobile navigation (hamburger menu/drawer) logic not fully implemented.
-
-## 5. Next Steps (Based on PRD Phases)
-Given the current `love-story.html` implementation, the project is likely in a very early stage or a proof-of-concept for the UI/UX. The next logical steps would involve:
-1.  **Setting up the Next.js Project:** Initialize a Next.js project with TypeScript and Tailwind CSS.
-2.  **Migrating UI Components:** Port the existing React components from `love-story.html` into the Next.js project, converting them to TypeScript.
-3.  **Integrating Framer Motion & Lucide React:** Replace custom animations and icons with the specified libraries.
-4.  **Backend Integration:** Connect the application to Supabase for data persistence and authentication.
+### Next Steps:
+1.  **Git Commit:** Stage and commit all changes.
+2.  **Environment Variables:** Ensure Supabase keys are set in the deployment environment (Vercel).
+3.  **Build Verification:** Run a final build to ensure type safety and asset generation.
+4.  **Deploy:** Push to the production branch.

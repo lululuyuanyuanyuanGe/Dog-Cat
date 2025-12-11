@@ -21,7 +21,7 @@ export async function POST(request: Request) {
             author_name,
             content,
             avatar_seed,
-        })
+        } as any)
         .select()
         .single();
 

@@ -75,10 +75,12 @@ export default function MemoryViewer({ isOpen, onClose, item, initialIndex = 0 }
             exit={{ opacity: 0, scale: 0.9 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             className="relative z-40 max-w-5xl w-full flex items-center justify-center p-4"
-            onClick={(e) => e.stopPropagation()}
           >
             {item.type === 'photo' && item.mediaUrls && item.mediaUrls[index] && (
-                <div className="relative cursor-default">
+                <div 
+                    className="relative cursor-default"
+                    onClick={(e) => e.stopPropagation()}
+                >
                     <img 
                         src={item.mediaUrls[index]} 
                         alt="Memory" 
@@ -96,6 +98,7 @@ export default function MemoryViewer({ isOpen, onClose, item, initialIndex = 0 }
             {item.type === 'note' && noteStyle && (
                 <div 
                     className={`p-10 h-auto w-full max-w-2xl flex flex-col justify-between relative shadow-2xl cursor-default ${noteStyle.bg}`}
+                    onClick={(e) => e.stopPropagation()}
                 >
                     {noteStyle.decoration === 'pin-red' && <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-5 h-5 rounded-full bg-red-400 shadow-lg border-2 border-white/80 z-20"></div>}
                     {noteStyle.decoration === 'pin-gold' && <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-5 h-5 rounded-full bg-yellow-400 shadow-lg border-2 border-yellow-200 z-20"></div>}

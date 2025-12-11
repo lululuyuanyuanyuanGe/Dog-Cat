@@ -195,7 +195,7 @@ const ScrapbookItem: React.FC<ScrapbookItemProps> = ({ item, onDeleteOptimistic,
                         )}
                     </AnimatePresence>
 
-                    {item.type === 'photo' && <PhotoCard item={item} />}
+                    {item.type === 'photo' && <PhotoCard item={item} onSingleClick={handleInteraction} />}
                     {item.type === 'note' && <NoteCard item={item} />}
                     {item.type === 'video' && <VideoCard item={item} />} 
                     {item.type === 'pdf' && <PdfCard item={item} />}

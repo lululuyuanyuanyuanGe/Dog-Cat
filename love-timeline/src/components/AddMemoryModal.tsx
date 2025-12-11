@@ -34,7 +34,23 @@ export default function AddMemoryModal({ isOpen, onClose, onAddOptimistic, curre
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const newFiles = Array.from(e.target.files);
+      
+      const LIMITS: Record<string, number> = {
+          photo: 5,
+          video: 1,
+          pdf: 3,
+          audio: 1
+      };
+
+      const currentLimit = LIMITS[type] || 5;
+
+      if (files.length + newFiles.length > currentLimit) {
+          setError(`You can only upload a maximum of ${currentLimit} ${type}${currentLimit > 1 ? 's' : ''} at once.`);
+          return;
+      }
+
       setFiles(prev => [...prev, ...newFiles]);
+      setError(null);
     }
   };
 

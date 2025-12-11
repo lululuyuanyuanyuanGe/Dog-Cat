@@ -13,9 +13,9 @@ import ProfileWidget from '@/components/ProfileWidget';
 import AddMemoryModal from '@/components/AddMemoryModal';
 import LoginModal from '@/components/LoginModal';
 import { useUploadQueue } from '@/hooks/useUploadQueue';
-import { Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Loader2, AlertCircle, CheckCircle2, Trash2 } from 'lucide-react';
 
-const START_DATE = "2025-12-08T00:00:00"; 
+const START_DATE = "2025-12-01T00:00:00"; 
 const PLACEHOLDER_AVATAR = "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&h=100&fit=crop";
 
 const DAY_STYLES: { [key: number]: { label: string; color: string } } = {
@@ -111,7 +111,28 @@ export default function LoveTimeline({ initialMemories, initialComments, partner
         setActiveDate(newMemory.date);
     };
 
-    const handleDeleteOptimistic = (id: string) => setMemories(prev => prev.filter(m => m.id !== id));
+    const handleDeleteOptimistic = (id: string) => {
+        // Check if this is the last memory for the day
+        const remainingForDay = memories.filter(m => m.date === activeDate && m.id !== id);
+        if (remainingForDay.length === 0) {
+            // Cascade delete comments
+            setComments(prev => prev.filter(c => c.memory_date !== activeDate));
+            fetch(`/api/comments?date=${activeDate}`, { method: 'DELETE' }).catch(console.error);
+        }
+        
+        setMemories(prev => prev.filter(m => m.id !== id));
+    };
+
+    const handleDeleteComment = async (commentId: string) => {
+        setComments(prev => prev.filter(c => c.id !== commentId));
+        try {
+            await fetch(`/api/comments/${commentId}`, { method: 'DELETE' });
+        } catch (error) {
+            console.error("Failed to delete comment:", error);
+            router.refresh();
+        }
+    };
+
     const handleLikeOptimistic = (id: string) => setMemories(prev => prev.map(m => m.id === id ? { ...m, likes: (m.likes || 0) + 1 } : m));
     const handleUnlikeOptimistic = (id: string) => setMemories(prev => prev.map(m => m.id === id ? { ...m, likes: Math.max((m.likes || 0) - 1, 0) } : m));
 
@@ -141,7 +162,24 @@ export default function LoveTimeline({ initialMemories, initialComments, partner
             const author = memory.author || { name: memory.users?.display_name || "Unknown", avatar: memory.users?.avatar_url };
 
             const lastItem = groupedByDate[date].items[groupedByDate[date].items.length - 1];
-            const isGroupable = memory.type === 'photo' && lastItem && lastItem.type === 'photo' && lastItem.author.name === author.name && lastItem.content === memory.content && Math.abs(new Date(lastItem.raw_created_at).getTime() - new Date(memory.created_at).getTime()) < 120000;
+            
+            // Grouping Logic
+            let isGroupable = false;
+            
+            if (lastItem && memory.type === 'photo' && lastItem.type === 'photo') {
+                const batchId = memory.metadata?.batchId;
+                const lastBatchId = lastItem.metadata?.batchId;
+
+                if (batchId && lastBatchId) {
+                    // Strict Batch Matching
+                    isGroupable = batchId === lastBatchId;
+                } else {
+                    // Legacy Time/Content Matching
+                    isGroupable = lastItem.author.name === author.name && 
+                                  lastItem.content === memory.content && 
+                                  Math.abs(new Date(lastItem.raw_created_at).getTime() - new Date(memory.created_at).getTime()) < 120000;
+                }
+            }
 
             if (isGroupable) {
                 lastItem.media_urls.push(memory.media_url);
@@ -173,7 +211,13 @@ export default function LoveTimeline({ initialMemories, initialComments, partner
         return Object.values(groupedByDate).sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }, [memories, comments]);
 
-    const [activeDate, setActiveDate] = useState(processedData[0]?.date || new Date().toISOString().split('T')[0]);
+    const [activeDate, setActiveDate] = useState(() => {
+        // Default to local today
+        const now = new Date();
+        const localDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        return processedData[0]?.date || localDate;
+    });
+    
     const selectedYear = new Date(activeDate.replace(/-/g, '/')).getFullYear();
     const currentData = processedData.find((d: any) => d.date === activeDate) || { date: activeDate, items: [], comments: [] };
     const displayDate = new Date(activeDate.replace(/-/g,'/')).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
@@ -233,7 +277,7 @@ export default function LoveTimeline({ initialMemories, initialComments, partner
                         </div>
                         <button onClick={handleAddMemoryClick} className="bg-slate text-white px-6 py-3 rounded-xl font-bold shadow-lg hover:scale-105 transition-transform flex items-center gap-2 text-sm group">
                             <div className="bg-white/20 p-1 rounded-full group-hover:rotate-90 transition"><Icon name="Camera" size={16} /></div>
-                            <span className="hidden md:inline">Add Memory</span>
+                            <span className="hidden md:inline">添加回憶</span>
                         </button>
                     </div>
 
@@ -253,8 +297,8 @@ export default function LoveTimeline({ initialMemories, initialComments, partner
                             </div>
                         ) : (
                             <div className="text-center py-20 text-slate/40 italic bg-white/30 rounded-[2rem] border border-dashed border-slate/20">
-                                <p className="mb-2">No memories recorded for this day.</p>
-                                <p className="text-xs">Click "Add Memory" to capture this moment!</p>
+                                <p className="mb-2">今天還沒回憶欸。</p>
+                                <p className="text-xs">快去添加回憶吧！</p>
                             </div>
                         )}
 
@@ -269,10 +313,21 @@ export default function LoveTimeline({ initialMemories, initialComments, partner
                                 {currentData.comments?.map((comment: any) => (
                                     <div key={comment.id} className="flex gap-4 items-start group">
                                         <div className="w-10 h-10 rounded-full bg-slate-200 flex-shrink-0 border-2 border-white shadow-md flex items-center justify-center text-lg font-bold text-slate-500">{comment.avatarSeed}</div>
-                                        <div className="flex-1">
-                                            <div className="flex items-baseline gap-2 mb-1">
-                                                <span className="font-bold text-sm text-slate">{comment.user}</span>
-                                                <span className="text-[10px] font-mono text-gray-400 opacity-50">{comment.time}</span>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-baseline justify-between mb-1">
+                                                <div className="flex items-baseline gap-2">
+                                                    <span className="font-bold text-sm text-slate">{comment.user}</span>
+                                                    <span className="text-[10px] font-mono text-gray-400 opacity-50">{comment.time}</span>
+                                                </div>
+                                                {currentUser && (
+                                                    <button 
+                                                        onClick={() => handleDeleteComment(comment.id)}
+                                                        className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-300 hover:text-red-400 p-1 hover:bg-red-50 rounded-full"
+                                                        title="Delete Note"
+                                                    >
+                                                        <Trash2 size={12} />
+                                                    </button>
+                                                )}
                                             </div>
                                             <p className="text-sm text-slate/70 leading-relaxed bg-white px-4 py-2 rounded-2xl rounded-tl-none shadow-sm border border-gray-50">{comment.text}</p>
                                         </div>

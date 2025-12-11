@@ -68,6 +68,9 @@ export default function AddMemoryModal({ isOpen, onClose, onAddOptimistic, curre
         avatar: currentUser?.avatar_url
     };
 
+    // Generate a unique ID for this upload batch
+    const batchId = crypto.randomUUID();
+
     try {
       // 1. NOTES
       if (type === 'note') {
@@ -78,12 +81,13 @@ export default function AddMemoryModal({ isOpen, onClose, onAddOptimistic, curre
           const tempId = `temp-${Date.now()}`;
           const newNote = {
               id: tempId,
+              user_id: currentUser?.id, // Critical for isOwner check
               date,
               type,
               content,
               media_url: null,
               created_at: new Date().toISOString(),
-              metadata: { styleId },
+              metadata: { styleId, batchId },
               author
           };
           onAddOptimistic(newNote);
@@ -95,7 +99,7 @@ export default function AddMemoryModal({ isOpen, onClose, onAddOptimistic, curre
               content,
               files: [], // No files
               author,
-              metadata: { styleId }
+              metadata: { styleId, batchId }
           });
       } 
       // 2. MEDIA
@@ -105,12 +109,18 @@ export default function AddMemoryModal({ isOpen, onClose, onAddOptimistic, curre
           // Optimistic
           const tempMemories = files.map((file, i) => ({
               id: `temp-${Date.now()}-${i}`,
+              user_id: currentUser?.id, // Critical for isOwner check
               date,
               type,
               content,
               media_url: URL.createObjectURL(file),
               created_at: new Date().toISOString(),
-              metadata: { original_filename: file.name, size: file.size, mime_type: file.type },
+              metadata: { 
+                  original_filename: file.name, 
+                  size: file.size, 
+                  mime_type: file.type,
+                  batchId 
+              },
               author
           }));
           tempMemories.forEach(m => onAddOptimistic(m));
@@ -121,7 +131,8 @@ export default function AddMemoryModal({ isOpen, onClose, onAddOptimistic, curre
               type,
               content,
               files: files, // All files
-              author
+              author,
+              metadata: { batchId }
           });
       }
 

@@ -122,10 +122,96 @@ export const NOTE_STYLES = [
 ];
 
 export const PHOTO_STYLES = [
-    { type: 'classic', border: 'border-[6px] border-white bg-white', rotate: 'rotate-1', text: 'text-slate/80', tape: true },
-    { type: 'film', border: 'border-x-[8px] border-y-[12px] border-zinc-900 bg-zinc-900', rotate: '-rotate-1', text: 'text-white/70', tape: false },
-    { type: 'clean', border: 'border-4 border-slate-100 bg-slate-100', rotate: 'rotate-0', text: 'text-slate-600', tape: false },
-    { type: 'retro', border: 'border-[8px] border-[#f0f0f0] bg-[#f0f0f0]', rotate: 'rotate-2', text: 'text-slate/60', tape: true },
+    { 
+        id: 'classic', 
+        type: 'Classic', 
+        border: 'border-[8px] border-white bg-white', 
+        rotate: 'rotate-1', 
+        text: 'text-slate-700', 
+        tape: true,
+        css: { boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' } 
+    },
+    { 
+        id: 'film', 
+        type: 'Film Strip', 
+        border: 'bg-zinc-900 px-2 py-4 border-l-4 border-r-4 border-zinc-900', 
+        rotate: '-rotate-1', 
+        text: 'text-white/80', 
+        tape: false,
+        css: { backgroundImage: 'linear-gradient(to bottom, transparent 50%, rgba(255,255,255,0.1) 50%)', backgroundSize: '100% 4px' } 
+    },
+    { 
+        id: 'clean', 
+        type: 'Clean', 
+        border: 'border-4 border-slate-50 bg-slate-50', 
+        rotate: 'rotate-0', 
+        text: 'text-slate-600', 
+        tape: false,
+        css: { boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' } 
+    },
+    { 
+        id: 'retro', 
+        type: 'Retro', 
+        border: 'border-[8px] border-[#f0f0f0] bg-[#f0f0f0]', 
+        rotate: 'rotate-2', 
+        text: 'text-slate-500', 
+        tape: true,
+        css: { borderStyle: 'solid', outline: '1px dashed #d4d4d4', outlineOffset: '-6px' } 
+    },
+    { 
+        id: 'polaroid', 
+        type: 'Polaroid', 
+        border: 'bg-white pb-16 pt-2 px-2 shadow-xl', 
+        rotate: '-rotate-2', 
+        text: 'text-slate-800 font-hand text-2xl', 
+        tape: true,
+        css: { transformOrigin: 'top center' }
+    },
+    { 
+        id: 'neon', 
+        type: 'Neon Cyber', 
+        border: 'bg-slate-900 border-2 border-cyan-400 p-1', 
+        rotate: 'rotate-1', 
+        text: 'text-cyan-400 font-mono', 
+        tape: false,
+        css: { boxShadow: '0 0 10px #22d3ee, 0 0 20px #22d3ee' }
+    },
+    { 
+        id: 'gold', 
+        type: 'Gold Frame', 
+        border: 'bg-amber-50 p-2 border-4 border-amber-300', 
+        rotate: '-rotate-1', 
+        text: 'text-amber-800 font-serif italic', 
+        tape: false,
+        css: { outline: '2px solid #b45309', outlineOffset: '2px' }
+    },
+    { 
+        id: 'grunge', 
+        type: 'Grunge', 
+        border: 'bg-stone-200 p-2', 
+        rotate: 'rotate-2', 
+        text: 'text-stone-800 font-typewriter', 
+        tape: true,
+        css: { clipPath: 'polygon(2% 2%, 98% 1%, 100% 98%, 1% 99%)', filter: 'sepia(0.4)' }
+    },
+    { 
+        id: 'soft', 
+        type: 'Soft Cloud', 
+        border: 'bg-white p-3 rounded-[2rem]', 
+        rotate: '-rotate-1', 
+        text: 'text-slate-600', 
+        tape: false,
+        css: { boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)' }
+    },
+    { 
+        id: 'wooden', 
+        type: 'Wooden', 
+        border: 'bg-[#5d4037] p-3 rounded-sm', 
+        rotate: 'rotate-1', 
+        text: 'text-[#d7ccc8]', 
+        tape: false,
+        css: { backgroundImage: 'repeating-linear-gradient(45deg, #3e2723 0, #3e2723 10px, #4e342e 10px, #4e342e 20px)' }
+    }
 ];
 
 export const getNoteStyle = (id: string, styleId?: string) => {

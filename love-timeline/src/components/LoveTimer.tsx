@@ -36,10 +36,10 @@ const LoveTimer = ({ startDate }: Props) => {
     return (
         <div className="flex flex-col items-center py-8 z-10 relative">
             <div className="flex gap-3 md:gap-6">
-                <TimeCard val={time.days} label="DAYS" color="bg-pastel-pink/80" rotate="-rotate-2" />
-                <TimeCard val={time.hours} label="HRS" color="bg-pastel-blue/80" rotate="rotate-1" />
-                <TimeCard val={time.minutes} label="MINS" color="bg-pastel-yellow/80" rotate="-rotate-1" />
-                <TimeCard val={time.seconds} label="SECS" color="bg-pastel-mint/80" rotate="rotate-2" />
+                <TimeCard val={time.days} label="天" color="bg-pastel-pink/80" rotate="-rotate-2" />
+                <TimeCard val={time.hours} label="時" color="bg-pastel-blue/80" rotate="rotate-1" />
+                <TimeCard val={time.minutes} label="分" color="bg-pastel-yellow/80" rotate="-rotate-1" />
+                <TimeCard val={time.seconds} label="秒" color="bg-pastel-mint/80" rotate="rotate-2" />
             </div>
         </div>
     );

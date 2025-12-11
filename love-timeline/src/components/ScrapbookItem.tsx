@@ -153,7 +153,7 @@ const ScrapbookItem: React.FC<ScrapbookItemProps> = ({ item, onDeleteOptimistic,
             >
                 <div className="w-full h-full hover:scale-[1.02] hover:rotate-0 transition-transform duration-300 ease-out hover:z-10 relative cursor-pointer">
                     
-                    <div className="absolute -top-3 left-0 right-0 z-20 flex justify-between px-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+                    <div className="absolute -top-3 left-0 right-0 z-50 flex justify-between px-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
                         {item.author ? (
                             <div className="flex items-center gap-2 bg-white/90 backdrop-blur-sm p-1 pr-3 rounded-full shadow-md border border-white/50 pointer-events-auto">
                                 <div className="w-8 h-8 rounded-full overflow-hidden border border-slate-100 bg-slate-50 flex items-center justify-center">

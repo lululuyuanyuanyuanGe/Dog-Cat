@@ -4,7 +4,7 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { getNoteStyle } from '@/lib/styles';
+import NoteContent from './NoteContent';
 
 interface MemoryViewerProps {
   isOpen: boolean;
@@ -35,9 +35,6 @@ export default function MemoryViewer({ isOpen, onClose, item, initialIndex = 0 }
     e?.stopPropagation();
     if (item.mediaUrls && item.mediaUrls.length > 0) setIndex((prev) => (prev - 1 + (item.mediaUrls?.length || 1)) % (item.mediaUrls?.length || 1));
   };
-
-  // Get note style for the viewer
-  const noteStyle = item.type === 'note' ? getNoteStyle(item.id) : null;
 
   return (
     <AnimatePresence>
@@ -95,25 +92,8 @@ export default function MemoryViewer({ isOpen, onClose, item, initialIndex = 0 }
                 </div>
             )}
 
-            {item.type === 'note' && noteStyle && (
-                <div 
-                    className={`p-10 h-auto w-full max-w-2xl flex flex-col justify-between relative shadow-2xl cursor-default ${noteStyle.bg}`}
-                    onClick={(e) => e.stopPropagation()}
-                >
-                    {noteStyle.decoration === 'pin-red' && <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-5 h-5 rounded-full bg-red-400 shadow-lg border-2 border-white/80 z-20"></div>}
-                    {noteStyle.decoration === 'pin-gold' && <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-5 h-5 rounded-full bg-yellow-400 shadow-lg border-2 border-yellow-200 z-20"></div>}
-                    {noteStyle.decoration === 'tape-pink' && <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-24 h-6 bg-pink-300/50 backdrop-blur-sm shadow-md rotate-3"></div>}
-                    {noteStyle.decoration === 'tape-blue' && <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-24 h-6 bg-sky-300/50 backdrop-blur-sm shadow-md -rotate-3"></div>}
-                    {noteStyle.decoration === 'clip' && <div className="absolute -top-5 left-1/2 -translate-x-1/2 w-10 h-10 border-4 border-slate-400 rounded-t-full z-20"></div>}
-
-                    <p className="font-hand text-slate-700 text-3xl leading-relaxed opacity-90 my-4 whitespace-pre-wrap text-center">
-                        "{item.content}"
-                    </p>
-                    
-                    <div className="flex justify-end items-center mt-6 border-t border-black/10 pt-4">
-                        <span className="font-mono text-sm text-slate/50">{item.time}</span>
-                    </div>
-                </div>
+            {item.type === 'note' && (
+                <NoteContent item={item} viewMode={true} onClick={(e) => e.stopPropagation()} />
             )}
           </motion.div>
         </div>

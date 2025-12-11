@@ -10,6 +10,7 @@ export type QueueItem = {
     content: string;
     status: 'pending' | 'uploading' | 'completed' | 'error';
     error?: string;
+    metadata?: any;
 };
 
 export const useUploadQueue = () => {
@@ -37,7 +38,7 @@ export const useUploadQueue = () => {
                         type: item.type, 
                         content: item.content, 
                         media_url: null, 
-                        metadata: {} 
+                        metadata: item.metadata || {} 
                     }),
                 });
                 
@@ -73,6 +74,7 @@ export const useUploadQueue = () => {
                             content: item.content,
                             media_url: publicUrl,
                             metadata: {
+                                ...(item.metadata || {}),
                                 original_filename: file.name,
                                 size: file.size,
                                 mime_type: file.type

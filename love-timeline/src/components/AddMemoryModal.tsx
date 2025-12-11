@@ -4,6 +4,7 @@ import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Upload, Loader2, Image as ImageIcon, Video, FileText, Mic, File } from 'lucide-react';
 import DatePicker from '@/components/DatePicker';
+import { getRandomStyleId } from '@/lib/styles';
 
 type MemoryType = 'photo' | 'video' | 'note' | 'audio' | 'pdf';
 
@@ -70,6 +71,9 @@ export default function AddMemoryModal({ isOpen, onClose, onAddOptimistic, curre
     try {
       // 1. NOTES
       if (type === 'note') {
+          // Generate a stable style ID
+          const styleId = getRandomStyleId();
+          
           // Optimistic
           const tempId = `temp-${Date.now()}`;
           const newNote = {
@@ -79,7 +83,7 @@ export default function AddMemoryModal({ isOpen, onClose, onAddOptimistic, curre
               content,
               media_url: null,
               created_at: new Date().toISOString(),
-              metadata: {},
+              metadata: { styleId },
               author
           };
           onAddOptimistic(newNote);
@@ -90,7 +94,8 @@ export default function AddMemoryModal({ isOpen, onClose, onAddOptimistic, curre
               type,
               content,
               files: [], // No files
-              author
+              author,
+              metadata: { styleId }
           });
       } 
       // 2. MEDIA

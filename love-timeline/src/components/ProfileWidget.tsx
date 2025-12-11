@@ -14,6 +14,7 @@ type Props = {
 
 const ProfileWidget = ({ initialUser, onUserChange }: Props) => {
     const [user, setUser] = useState<any>(initialUser || null);
+    const [isLoading, setIsLoading] = useState(!initialUser);
     const [isOpen, setIsOpen] = useState(false);
     const [showLogin, setShowLogin] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
@@ -31,19 +32,23 @@ const ProfileWidget = ({ initialUser, onUserChange }: Props) => {
     useEffect(() => {
         // Check active session
         const getUser = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session?.user) {
-                // Fetch profile data
-                const { data: profile } = await supabase
-                    .from('users')
-                    .select('*')
-                    .eq('id', session.user.id)
-                    .single();
-                
-                // Merge auth user with profile data
-                setUser({ ...session.user, ...profile });
-            } else {
-                setUser(null);
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session?.user) {
+                    // Fetch profile data
+                    const { data: profile } = await supabase
+                        .from('users')
+                        .select('*')
+                        .eq('id', session.user.id)
+                        .single();
+                    
+                    // Merge auth user with profile data
+                    setUser({ ...session.user, ...profile });
+                } else {
+                    setUser(null);
+                }
+            } finally {
+                setIsLoading(false);
             }
         };
 
@@ -60,9 +65,11 @@ const ProfileWidget = ({ initialUser, onUserChange }: Props) => {
                     .single();
                  
                  setUser({ ...session.user, ...profile });
+                 setIsLoading(false);
                  router.refresh();
              } else {
                  setUser(null);
+                 setIsLoading(false);
                  router.refresh();
              }
         });
@@ -82,6 +89,8 @@ const ProfileWidget = ({ initialUser, onUserChange }: Props) => {
             console.error("Logout error:", error);
         }
     };
+
+    if (isLoading) return null;
 
     if (!user) {
         return (

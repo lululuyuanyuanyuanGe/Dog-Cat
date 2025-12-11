@@ -181,7 +181,13 @@ export default function LoveTimeline({ initialMemories, initialComments, partner
     const dayOfWeek = new Date(activeDate.replace(/-/g, '/')).getDay();
     const dayStyle = DAY_STYLES[dayOfWeek] || DAY_STYLES[0];
 
+    const isFirstRender = useRef(true);
+
     useEffect(() => {
+        if (isFirstRender.current) {
+            isFirstRender.current = false;
+            return;
+        }
         if (mainContentRef.current) {
             mainContentRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
@@ -200,7 +206,7 @@ export default function LoveTimeline({ initialMemories, initialComments, partner
             <BackgroundBlobs />
             <BackgroundDecorations />
             
-            <ProfileWidget initialUser={partners?.[0]} onUserChange={setCurrentUser} />
+            <ProfileWidget onUserChange={setCurrentUser} />
             <AddMemoryModal isOpen={isAddMemoryOpen} onClose={() => setIsAddMemoryOpen(false)} onAddOptimistic={handleAddOptimistic} currentUser={currentUser} addToQueue={addToQueue} />
             <LoginModal isOpen={isLoginModalOpen} onClose={() => setIsLoginModalOpen(false)} />
 
@@ -241,6 +247,7 @@ export default function LoveTimeline({ initialMemories, initialComments, partner
                                         onDeleteOptimistic={handleDeleteOptimistic} 
                                         onLikeOptimistic={handleLikeOptimistic}
                                         onUnlikeOptimistic={handleUnlikeOptimistic}
+                                        currentUser={currentUser}
                                     />
                                 ))}
                             </div>

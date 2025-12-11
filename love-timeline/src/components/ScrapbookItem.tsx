@@ -16,6 +16,7 @@ interface ScrapbookItemProps {
     type: 'photo' | 'note' | 'video' | 'pdf' | 'audio';
     size: 'small' | 'medium' | 'large' | 'wide';
     id: string; 
+    user_id?: string;
     author?: {
         name: string;
         avatar?: string;
@@ -30,9 +31,10 @@ interface ScrapbookItemProps {
   onDeleteOptimistic: (id: string) => void;
   onLikeOptimistic: (id: string) => void;
   onUnlikeOptimistic: (id: string) => void;
+  currentUser?: any;
 }
 
-const ScrapbookItem: React.FC<ScrapbookItemProps> = ({ item, onDeleteOptimistic, onLikeOptimistic, onUnlikeOptimistic }) => {
+const ScrapbookItem: React.FC<ScrapbookItemProps> = ({ item, onDeleteOptimistic, onLikeOptimistic, onUnlikeOptimistic, currentUser }) => {
     const router = useRouter();
     const [rotation, setRotation] = useState(0);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -47,6 +49,8 @@ const ScrapbookItem: React.FC<ScrapbookItemProps> = ({ item, onDeleteOptimistic,
     
     const likeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const serverLikedState = useRef(false); 
+
+    const isOwner = currentUser && (currentUser.id === item.user_id || currentUser.display_name === item.author?.name);
 
     // Ref for handling single vs double click
     const interactionTimer = useRef<NodeJS.Timeout | null>(null);
@@ -165,13 +169,15 @@ const ScrapbookItem: React.FC<ScrapbookItemProps> = ({ item, onDeleteOptimistic,
                             </div>
                         ) : <div></div>}
 
-                        <button 
-                            onClick={handleDeleteClick}
-                            className="bg-white/90 backdrop-blur-sm p-2 rounded-full shadow-md border border-white/50 text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors pointer-events-auto"
-                            title="Delete Memory"
-                        >
-                            <Trash2 size={16} />
-                        </button>
+                        {isOwner && (
+                            <button 
+                                onClick={handleDeleteClick}
+                                className="bg-white/90 backdrop-blur-sm p-2 rounded-full shadow-md border border-white/50 text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors pointer-events-auto"
+                                title="Delete Memory"
+                            >
+                                <Trash2 size={16} />
+                            </button>
+                        )}
                     </div>
 
                     {((localLikes > 0) || hasLiked) && (

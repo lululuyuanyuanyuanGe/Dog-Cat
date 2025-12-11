@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import Icon from '@/components/Icon';
 import HeroHighlight from '@/components/HeroHighlight';
 import LoveTimer from '@/components/LoveTimer';
@@ -161,6 +161,34 @@ export default function LoveTimeline({ initialMemories, initialComments, partner
 
     const activeQueue = queue.filter(q => q.status !== 'completed' || (q.status === 'completed' && queue.length > 0)); 
 
+    const shouldScrollRef = useRef(false);
+
+    const handleDateJump = (date: string) => {
+        setActiveDate(date);
+        shouldScrollRef.current = true; // Tell the effect "The user clicked, please scroll!"
+    };
+
+    useEffect(() => {
+        if (shouldScrollRef.current) {
+            const element = document.getElementById('daily-view-container');
+            
+            if (element) {
+                // Calculate position with an offset (so the header doesn't cover the content)
+                const yOffset = -120; // Adjust this number based on your header height
+                const y = element.getBoundingClientRect().top + window.scrollY + yOffset;
+
+                window.scrollTo({
+                    top: y,
+                    behavior: 'smooth'
+                });
+            }
+            
+            // Reset the flag so it doesn't keep scrolling
+            shouldScrollRef.current = false;
+        }
+    }, [activeDate]); // <--- Run this logic every time activeDate changes
+
+
     return (
         <div className="min-h-screen pb-20 relative font-sans text-slate">
             <BackgroundBlobs />
@@ -208,7 +236,7 @@ export default function LoveTimeline({ initialMemories, initialComments, partner
             <header className="relative z-10 flex flex-col items-center">
                 <HeroHighlight user={heroData} />
                 <LoveTimer startDate={START_DATE} />
-                <ContributionHero memories={processedData} year={selectedYear} />
+                <ContributionHero memories={processedData} year={selectedYear} onDateSelect={handleDateJump}  />
             </header>
 
             <div className="flex flex-col lg:flex-row gap-8 relative max-w-7xl mx-auto mt-4 z-10 px-4 md:px-8">
@@ -216,7 +244,7 @@ export default function LoveTimeline({ initialMemories, initialComments, partner
                     <TimelineTree data={processedData} activeDate={activeDate} onSelect={setActiveDate} />
                 </div>
 
-                <main className="flex-1 w-full min-w-0">
+                <main className="flex-1 w-full min-w-0" id="daily-view-container">
                     <div className="mb-8 flex items-end justify-between bg-white/40 backdrop-blur-md p-6 rounded-[2rem] border border-white/50 shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-700">
                         <div>
                             <h2 className="font-display text-3xl md:text-5xl font-bold text-slate mb-2">{displayDate}</h2>

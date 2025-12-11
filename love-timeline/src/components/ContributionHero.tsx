@@ -11,6 +11,7 @@ interface Memory {
 interface Props {
     memories: Memory[];
     year?: number; // Add year prop to control which year the graph displays
+    onDateSelect?: (date: string) => void;
 }
 
 // SOLID HEART MAP (~390 pixels)
@@ -38,7 +39,7 @@ const SOLID_HEART_MAP = [
   [0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0]
 ];
 
-const ContributionHero = ({ memories, year }: Props) => {
+const ContributionHero = ({ memories, year, onDateSelect}: Props) => {
     // Default to current year if not provided
     const selectedYear = year || new Date().getFullYear();
 
@@ -109,10 +110,17 @@ const ContributionHero = ({ memories, year }: Props) => {
                 tooltipText = `${contributionText} on ${formattedDate}${yearLabel}`;
             }
 
+            const handleClick = () => {
+                if (count > 0 && onDateSelect) {
+                    onDateSelect(date);
+                }
+            };
+
             return (
-                <div key={date} className="relative group">
+                <div key={date} className="relative group" onClick={handleClick}>
                     <div className={`w-full h-full rounded-[2px] transition-all duration-200 
-                        ${colors[level]} 
+                        ${colors[level]}
+                        ${count > 0 ? 'cursor-pointer hover:ring-2 hover:ring-rose-400 z-10' : ''} 
                         cursor-pointer group-hover:scale-125 group-hover:shadow-lg group-hover:z-10
                     `} />
                     

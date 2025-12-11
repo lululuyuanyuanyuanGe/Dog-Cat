@@ -258,7 +258,7 @@ export default function LoveTimeline({ initialMemories, initialComments, partner
                             onClick={() => setIsAddMemoryOpen(true)}
                             className="bg-slate text-white px-6 py-3 rounded-xl font-bold shadow-lg hover:scale-105 transition-transform flex items-center gap-2 text-sm group"
                         >
-                            <div className="bg-white/20 p-1 rounded-full group-hover:rotate-90 transition"><Icon name="camera" size={16} /></div>
+                            <div className="bg-white/20 p-1 rounded-full group-hover:rotate-90 transition"><Icon name="Camera" size={16} /></div>
                             <span className="hidden md:inline">Add Memory</span>
                         </button>
                     </div>

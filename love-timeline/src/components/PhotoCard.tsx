@@ -12,7 +12,7 @@ interface PhotoCardProps {
             text: string;
         };
     };
-    onClick?: (index: number) => void; // Changed signature
+    onSingleClick?: (e: React.MouseEvent, index: number) => void;
 }
 
 const STYLES = [
@@ -22,23 +22,20 @@ const STYLES = [
     { type: 'retro', border: 'border-[8px] border-[#f0f0f0] bg-[#f0f0f0]', rotate: 'rotate-2', text: 'text-slate/60', tape: true },
 ];
 
-const PhotoCard: React.FC<PhotoCardProps> = ({ item, onClick }) => {
+const PhotoCard: React.FC<PhotoCardProps> = ({ item, onSingleClick }) => {
     const seed = (item.id || item.src).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
     const style = STYLES[seed % STYLES.length];
 
     const images = item.media_urls && item.media_urls.length > 0 ? item.media_urls : [item.src];
     const isMulti = images.length > 1;
 
-    const handleClick = (e: React.MouseEvent, index: number) => {
-        // We let parent handle stopPropagation if needed, but here we just pass index
-        onClick?.(index);
-    };
-
     return (
         <div className={`h-full w-full relative shadow-md hover:shadow-xl transition-shadow pb-12 duration-300 group ${style.border} ${style.rotate} hover:rotate-0`}>
             {style.tape && <WashiTape className={`-top-3 ${seed % 2 === 0 ? 'left-10' : 'right-10'} rotate-[-2deg]`} />}
             
-            <div className="w-full h-full overflow-hidden relative bg-gray-100 cursor-zoom-in">
+            <div 
+                className="w-full h-full overflow-hidden relative bg-gray-100 cursor-zoom-in"
+            >
                 {isMulti ? (
                     <div className={`grid h-full w-full gap-[2px] ${
                         images.length === 2 ? 'grid-cols-2' : 
@@ -48,10 +45,8 @@ const PhotoCard: React.FC<PhotoCardProps> = ({ item, onClick }) => {
                         {images.slice(0, 4).map((img, i) => (
                             <div 
                                 key={i} 
-                                className={`relative overflow-hidden ${
-                                    images.length === 3 && i === 0 ? 'row-span-2' : ''
-                                }`}
-                                onClick={(e) => handleClick(e, i)}
+                                className={`relative overflow-hidden`}
+                                onClick={(e) => onSingleClick?.(e, i)}
                             >
                                 <img src={img} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
                                 {i === 3 && images.length > 4 && (
@@ -66,7 +61,7 @@ const PhotoCard: React.FC<PhotoCardProps> = ({ item, onClick }) => {
                     <img 
                         src={images[0]} 
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
-                        onClick={(e) => handleClick(e, 0)}
+                        onClick={(e) => onSingleClick?.(e, 0)}
                     />
                 )}
             </div>

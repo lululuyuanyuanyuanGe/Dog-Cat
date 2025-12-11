@@ -43,18 +43,13 @@ const ScrapbookItem: React.FC<ScrapbookItemProps> = ({ item, onDeleteOptimistic,
     const [showHeart, setShowHeart] = useState(false);
     const [showViewer, setShowViewer] = useState(false);
     
-    // Viewer State
     const [viewerIndex, setViewerIndex] = useState(0);
     
-    // --- SMART LIKE LOGIC ---
     const [hasLiked, setHasLiked] = useState(false);
     const [localLikes, setLocalLikes] = useState(item.likes || 0);
     
     const likeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const serverLikedState = useRef(false); 
-    
-    // Click Discrimination Ref
-    const clickTimerRef = useRef<NodeJS.Timeout | null>(null);
 
     const getSpan = () => {
         if (item.size === 'large') return 'col-span-1 md:col-span-2 md:row-span-2';
@@ -82,13 +77,10 @@ const ScrapbookItem: React.FC<ScrapbookItemProps> = ({ item, onDeleteOptimistic,
         setShowDeleteModal(true);
     };
 
-    // Unified Interaction Logic
-    const triggerLike = () => {
-        // Cancel view timer if it's pending
-        if (clickTimerRef.current) {
-            clearTimeout(clickTimerRef.current);
-            clickTimerRef.current = null;
-        }
+    // This is now the ONLY way to trigger a like.
+    const handleDoubleClick = (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
 
         const nextState = !hasLiked;
         setHasLiked(nextState); 
@@ -116,30 +108,13 @@ const ScrapbookItem: React.FC<ScrapbookItemProps> = ({ item, onDeleteOptimistic,
         }, 1000); 
     };
 
-    // Handle Image/Content Click (Debounced)
-    const handleContentClick = (index: number = 0) => {
-        // If we are already waiting for a click, this is a double click!
-        if (clickTimerRef.current) {
-            clearTimeout(clickTimerRef.current);
-            clickTimerRef.current = null;
-            triggerLike(); // Trigger Like instead of View
-            return;
-        }
-
-        // Wait 250ms. If no second click, Open Viewer.
-        clickTimerRef.current = setTimeout(() => {
+    // This is now the ONLY way to open the viewer.
+    const handleSingleClick = (e: React.MouseEvent, index: number = 0) => {
+        e.stopPropagation();
+        if (item.type === 'photo' || item.type === 'video' || item.type === 'note') {
             setViewerIndex(index);
             setShowViewer(true);
-            clickTimerRef.current = null;
-        }, 250);
-    };
-
-    // Wrapper Double Click (Backstop for frame clicks)
-    const handleWrapperDoubleClick = (e: React.MouseEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        // If we clicked the frame (not content), this fires naturally.
-        triggerLike();
+        }
     };
 
     const executeDelete = async () => {
@@ -160,13 +135,12 @@ const ScrapbookItem: React.FC<ScrapbookItemProps> = ({ item, onDeleteOptimistic,
     return (
         <>
             <div
-                className={`relative group transition-all duration-300 ${getSpan()} select-none`} // ADDED select-none
+                className={`relative group transition-all duration-300 ${getSpan()} select-none`}
                 style={{ transform: `rotate(${rotation}deg)` }}
-                onDoubleClick={handleWrapperDoubleClick}
+                onDoubleClick={handleDoubleClick}
             >
                 <div className="w-full h-full hover:scale-[1.02] hover:rotate-0 transition-transform duration-300 ease-out hover:z-10 relative cursor-pointer">
                     
-                    {/* Controls */}
                     <div className="absolute -top-3 left-0 right-0 z-20 flex justify-between px-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
                         {item.author ? (
                             <div className="flex items-center gap-2 bg-white/90 backdrop-blur-sm p-1 pr-3 rounded-full shadow-md border border-white/50 pointer-events-auto">
@@ -192,7 +166,6 @@ const ScrapbookItem: React.FC<ScrapbookItemProps> = ({ item, onDeleteOptimistic,
                         </button>
                     </div>
 
-                    {/* Likes Badge */}
                     {((localLikes > 0) || hasLiked) && (
                         <div className="absolute -bottom-2 -right-2 z-20 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full shadow-md border border-rose-100 flex items-center gap-1">
                             <Heart size={12} className={`transition-colors ${hasLiked ? 'text-rose-500 fill-rose-500' : 'text-slate-400'} ${localLikes > 0 ? 'scale-110' : ''}`} />
@@ -200,7 +173,6 @@ const ScrapbookItem: React.FC<ScrapbookItemProps> = ({ item, onDeleteOptimistic,
                         </div>
                     )}
 
-                    {/* Big Heart Animation */}
                     <AnimatePresence>
                         {showHeart && (
                             <motion.div
@@ -215,11 +187,9 @@ const ScrapbookItem: React.FC<ScrapbookItemProps> = ({ item, onDeleteOptimistic,
                         )}
                     </AnimatePresence>
 
-                    {/* Content Components - Pass handleContentClick */}
-                    {item.type === 'photo' && <PhotoCard item={item} onClick={(index) => handleContentClick(index)} />}
-                    {item.type === 'note' && <NoteCard item={item} onClick={() => handleContentClick(0)} />}
+                    {item.type === 'photo' && <PhotoCard item={item} onSingleClick={(e, index) => handleSingleClick(e, index)} />}
+                    {item.type === 'note' && <NoteCard item={item} onSingleClick={(e) => handleSingleClick(e)} />}
                     
-                    {/* Video/PDF need handlers if they support view logic */}
                     {item.type === 'video' && <VideoCard item={item} />} 
                     {item.type === 'pdf' && <PdfCard item={item} />}
                     
@@ -245,7 +215,7 @@ const ScrapbookItem: React.FC<ScrapbookItemProps> = ({ item, onDeleteOptimistic,
                 mediaUrls={images}
                 time={item.time} 
                 bg={noteStyle?.bg} 
-                initialIndex={viewerIndex} // Pass index
+                initialIndex={viewerIndex}
             />
         </>
     );

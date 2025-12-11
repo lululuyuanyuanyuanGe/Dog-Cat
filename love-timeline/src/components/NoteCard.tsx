@@ -8,20 +8,19 @@ interface NoteCardProps {
         time: string;
         [key: string]: any;
     };
-    onClick?: (e: React.MouseEvent) => void;
+    onSingleClick?: (e: React.MouseEvent) => void;
 }
 
-const NoteCard: React.FC<NoteCardProps> = ({ item, onClick }) => {
+const NoteCard: React.FC<NoteCardProps> = ({ item, onSingleClick }) => {
     const style = getNoteStyle(item.id);
 
     return (
         <div 
             className={`p-6 h-full flex flex-col justify-between relative shadow-md hover:shadow-xl transition-transform hover:-translate-y-1 ${style.bg} ${style.rotate} hover:rotate-0`}
-            onClick={onClick}
-            style={{ cursor: onClick ? 'zoom-in' : 'default' }}
+            onClick={onSingleClick}
+            style={{ cursor: onSingleClick ? 'zoom-in' : 'default' }}
         >
             
-            {/* Decorations */}
             {style.decoration === 'pin-red' && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-red-400 shadow-sm z-20 border-2 border-white/50"></div>
             )}

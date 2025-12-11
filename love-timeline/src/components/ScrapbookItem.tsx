@@ -10,13 +10,10 @@ import { useRouter } from 'next/navigation';
 import DeleteConfirmModal from './DeleteConfirmModal';
 import MemoryViewer from './MemoryViewer';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getNoteStyle } from '@/lib/styles';
-
-type MemoryType = 'photo' | 'note' | 'video' | 'pdf' | 'audio';
 
 interface ScrapbookItemProps {
   item: {
-    type: MemoryType;
+    type: 'photo' | 'note' | 'video' | 'pdf' | 'audio';
     size: 'small' | 'medium' | 'large' | 'wide';
     id: string; 
     author?: {
@@ -51,6 +48,10 @@ const ScrapbookItem: React.FC<ScrapbookItemProps> = ({ item, onDeleteOptimistic,
     const likeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const serverLikedState = useRef(false); 
 
+    // Ref for handling single vs double click
+    const interactionTimer = useRef<NodeJS.Timeout | null>(null);
+    const clickCount = useRef(0);
+
     const getSpan = () => {
         if (item.size === 'large') return 'col-span-1 md:col-span-2 md:row-span-2';
         if (item.size === 'wide') return 'col-span-1 md:col-span-2';
@@ -77,11 +78,7 @@ const ScrapbookItem: React.FC<ScrapbookItemProps> = ({ item, onDeleteOptimistic,
         setShowDeleteModal(true);
     };
 
-    // This is now the ONLY way to trigger a like.
-    const handleDoubleClick = (e: React.MouseEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-
+    const triggerLike = () => {
         const nextState = !hasLiked;
         setHasLiked(nextState); 
         localStorage.setItem(`liked_${item.id}`, String(nextState));
@@ -107,15 +104,27 @@ const ScrapbookItem: React.FC<ScrapbookItemProps> = ({ item, onDeleteOptimistic,
             } catch (error) { console.error("Like sync failed", error); }
         }, 1000); 
     };
-
-    // This is now the ONLY way to open the viewer.
-    const handleSingleClick = (e: React.MouseEvent, index: number = 0) => {
+    
+    // Unified handler for all clicks on the card
+    const handleInteraction = (e: React.MouseEvent, index: number = 0) => {
         e.stopPropagation();
-        if (item.type === 'photo' || item.type === 'video' || item.type === 'note') {
-            setViewerIndex(index);
-            setShowViewer(true);
+        clickCount.current++;
+
+        if (clickCount.current === 1) {
+            interactionTimer.current = setTimeout(() => {
+                // Timer finished, it was a single click
+                clickCount.current = 0;
+                setViewerIndex(index);
+                setShowViewer(true);
+            }, 250); // 250ms window to detect double-click
+        } else if (clickCount.current === 2) {
+            // It's a double click
+            if(interactionTimer.current) clearTimeout(interactionTimer.current);
+            clickCount.current = 0;
+            triggerLike();
         }
     };
+
 
     const executeDelete = async () => {
         setIsDeleting(true);
@@ -130,14 +139,13 @@ const ScrapbookItem: React.FC<ScrapbookItemProps> = ({ item, onDeleteOptimistic,
     if (isDeleting) return null;
 
     const images = item.media_urls && item.media_urls.length > 0 ? item.media_urls : (item.src ? [item.src] : []);
-    const noteStyle = item.type === 'note' ? getNoteStyle(item.id) : null;
-
+    
     return (
         <>
             <div
                 className={`relative group transition-all duration-300 ${getSpan()} select-none`}
                 style={{ transform: `rotate(${rotation}deg)` }}
-                onDoubleClick={handleDoubleClick}
+                onClick={handleInteraction} // Use the unified handler on the wrapper
             >
                 <div className="w-full h-full hover:scale-[1.02] hover:rotate-0 transition-transform duration-300 ease-out hover:z-10 relative cursor-pointer">
                     
@@ -187,9 +195,8 @@ const ScrapbookItem: React.FC<ScrapbookItemProps> = ({ item, onDeleteOptimistic,
                         )}
                     </AnimatePresence>
 
-                    {item.type === 'photo' && <PhotoCard item={item} onSingleClick={(e, index) => handleSingleClick(e, index)} />}
-                    {item.type === 'note' && <NoteCard item={item} onSingleClick={(e) => handleSingleClick(e)} />}
-                    
+                    {item.type === 'photo' && <PhotoCard item={item} />}
+                    {item.type === 'note' && <NoteCard item={item} />}
                     {item.type === 'video' && <VideoCard item={item} />} 
                     {item.type === 'pdf' && <PdfCard item={item} />}
                     
@@ -207,14 +214,11 @@ const ScrapbookItem: React.FC<ScrapbookItemProps> = ({ item, onDeleteOptimistic,
                 onConfirm={executeDelete} 
             />
 
+            {/* Pass the entire item to the viewer now */}
             <MemoryViewer 
                 isOpen={showViewer} 
                 onClose={() => setShowViewer(false)} 
-                type={item.type}
-                content={item.content}
-                mediaUrls={images}
-                time={item.time} 
-                bg={noteStyle?.bg} 
+                item={{ ...item, mediaUrls: images }}
                 initialIndex={viewerIndex}
             />
         </>

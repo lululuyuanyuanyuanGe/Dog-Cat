@@ -39,7 +39,7 @@ export async function POST(request: Request) {
         content,
         media_url,
         metadata: metadata || {},
-      })
+      } as any)
       .select()
       .single();
 

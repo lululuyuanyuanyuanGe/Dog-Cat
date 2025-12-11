@@ -21,9 +21,9 @@ const FloatingSticker: React.FC<FloatingStickerProps> = ({ text, top, left, righ
         } as React.CSSProperties}
     >
         <div className="bg-white px-5 py-2 rounded-full sticker-dash flex items-center gap-2 transform hover:scale-110 transition-transform duration-500 shadow-sm opacity-60 hover:opacity-100">
-            <Icon name="sparkles" size={14} className="text-yellow-400 fill-current" />
+            <Icon name="Sparkles" size={14} className="text-yellow-400 fill-current" />
             <span className="font-hand text-slate text-sm font-bold whitespace-nowrap">{text}</span>
-            <Icon name="heart" size={14} className="text-coral fill-current" />
+            <Icon name="Heart" size={14} className="text-coral fill-current" />
         </div>
     </div>
 );

@@ -12,7 +12,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ item }) => (
         <img src={item.src} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition duration-500" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
             <div className="w-14 h-14 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center border border-white/60 shadow-lg group-hover:scale-110 transition">
-                <Icon name="play" className="text-white fill-white ml-1" />
+                <Icon name="Play" className="text-white fill-white ml-1" />
             </div>
         </div>
         {/* Film Strips decoration */}

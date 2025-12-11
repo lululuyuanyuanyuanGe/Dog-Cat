@@ -106,7 +106,7 @@ const HeroHighlight = ({ user }: Props) => {
                     </div>
                     <div className="inline-block relative">
                         <p className="font-hand text-slate/40 text-2xl rotate-[-2deg]">
-                            ( 我的鼻子為什麼紅紅的 )
+                            ( 祝你開心每一天 )
                         </p>
                         <DoodleUnderline />
                     </div>

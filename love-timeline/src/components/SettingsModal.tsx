@@ -71,6 +71,7 @@ export default function SettingsModal({ isOpen, onClose, user, onProfileUpdate }
       // 2. Update User Profile in DB
       const { error: updateError } = await supabase
         .from('users')
+        // @ts-ignore
         .update({
           display_name: displayName,
           avatar_url: finalAvatarUrl

@@ -43,7 +43,7 @@ const ProfileWidget = ({ initialUser, onUserChange }: Props) => {
                         .single();
                     
                     // Merge auth user with profile data
-                    setUser({ ...session.user, ...profile });
+                    setUser({ ...session.user, ...(profile || {}) });
                 } else {
                     setUser(null);
                 }
@@ -64,7 +64,7 @@ const ProfileWidget = ({ initialUser, onUserChange }: Props) => {
                     .eq('id', session.user.id)
                     .single();
                  
-                 setUser({ ...session.user, ...profile });
+                 setUser({ ...session.user, ...(profile || {}) });
                  setIsLoading(false);
                  router.refresh();
              } else {

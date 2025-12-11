@@ -201,10 +201,21 @@ const ScrapbookItem: React.FC<ScrapbookItemProps> = ({ item, onDeleteOptimistic,
                         )}
                     </AnimatePresence>
 
-                    {item.type === 'photo' && <PhotoCard item={item} onSingleClick={handleInteraction} />}
-                    {item.type === 'note' && <NoteCard item={item} />}
-                    {item.type === 'video' && <VideoCard item={item} />} 
-                    {item.type === 'pdf' && <PdfCard item={item} />}
+                    {item.type === 'photo' && (
+                        <PhotoCard 
+                            item={{ ...item, src: item.src || '' }} 
+                            onSingleClick={handleInteraction} 
+                        />
+                    )}
+                    {item.type === 'note' && (
+                        <NoteCard item={{ ...item, content: item.content || '', time: item.time || '' }} />
+                    )}
+                    {item.type === 'video' && (
+                        <VideoCard item={{ ...item, src: item.src || '' }} />
+                    )} 
+                    {item.type === 'pdf' && (
+                        <PdfCard item={{ ...item, title: item.content || 'Document' }} />
+                    )}
                     
                     {item.type === 'audio' && (
                         <div className="w-full h-full bg-white rounded-2xl shadow-sm p-4 flex items-center justify-center border border-slate-100">

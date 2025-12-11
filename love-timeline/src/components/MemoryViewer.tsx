@@ -93,7 +93,15 @@ export default function MemoryViewer({ isOpen, onClose, item, initialIndex = 0 }
             )}
 
             {item.type === 'note' && (
-                <NoteContent item={item} viewMode={true} onClick={(e) => e.stopPropagation()} />
+                <NoteContent 
+                    item={{ 
+                        ...item, 
+                        content: item.content || '', 
+                        time: item.time || '' 
+                    }} 
+                    viewMode={true} 
+                    onClick={(e) => e.stopPropagation()} 
+                />
             )}
           </motion.div>
         </div>

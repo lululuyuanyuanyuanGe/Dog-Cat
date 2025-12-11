@@ -15,47 +15,45 @@ type Props = {
 
 const HeroHighlight = ({ user }: Props) => {
     const [ekgVariant, setEkgVariant] = useState(0);
+    const [animationCycle, setAnimationCycle] = useState(0);
 
     useEffect(() => {
-        // Set an interval to cycle through the EKG animation styles every 4.5 seconds.
-        // This creates a continuously changing visual effect.
         const styleInterval = setInterval(() => {
-            setEkgVariant(prevVariant => (prevVariant + 1) % 3); // Cycle 0, 1, 2
-        }, 4500); // 3 cycles of the 1.5s animation
+            setEkgVariant(prevVariant => (prevVariant + 1) % 4);
+            setAnimationCycle(prevCycle => prevCycle + 1);
+        }, 2000);
+        return () => clearInterval(styleInterval);
+    }, []);
 
-        return () => clearInterval(styleInterval); // Cleanup on component unmount
-    }, []); // Empty dependency array ensures this runs only once to set up the interval.
+    const heartAnimationName = `pulse-heart-${animationCycle}`;
+    const ekgAnimationName = `draw-lifeline-${animationCycle}`;
 
     return (
         <div className="w-full max-w-3xl mx-auto pt-16 pb-10 px-4 z-10 relative">
             <style>
                 {`
-                    @keyframes pulse-heart {
-                        /* Heart swells immediately as the EKG line starts drawing */
+                    @keyframes ${heartAnimationName} {
                         0% {
-                            transform: scale(1.25);
-                            fill: #FB7185; /* rose-400 */
-                        }
-                        /* It returns to normal quickly, matching the beat's duration */
-                        30%, 100% {
                             transform: scale(1);
-                            fill: #F43F5E; /* rose-500 */
+                            stroke-width: 0;
                         }
-                    }
-                    .heart-pulse-animate {
-                        /* Animation is timed to match the EKG line's 1.5s duration */
-                        animation: pulse-heart 1.5s ease-in-out infinite;
+                        20% {
+                            transform: scale(1.3);
+                            stroke: #FDA4AF; /* rose-300 */
+                            stroke-width: 2;
+                        }
+                        40%, 100% {
+                            transform: scale(1);
+                            stroke-width: 0;
+                        }
                     }
                 `}
             </style>
             <div className="relative flex flex-col items-center">
-                {/* Background Glow */}
                 <div className="absolute inset-0 bg-gradient-to-r from-rose-100/30 via-white/50 to-blue-100/30 blur-3xl rounded-full -z-10 transform scale-150"></div>
                 
-                {/* MAIN ROW */}
                 <div className="flex items-start justify-center w-full animate-in fade-in zoom-in duration-1000">
                     
-                    {/* === LEFT AVATAR GROUP === */}
                     <div className="flex flex-col items-center shrink-0 z-10 w-32 md:w-40">
                         <div className="w-20 h-20 md:w-32 md:h-32 rounded-full border-[5px] border-white shadow-2xl overflow-hidden relative group transition-transform hover:scale-105 duration-300 ring-1 ring-slate-100 bg-white">
                             <img src={user.partnerAvatar} className="w-full h-full object-cover" alt={user.name2} />
@@ -65,31 +63,33 @@ const HeroHighlight = ({ user }: Props) => {
                         </h1>
                     </div>
 
-                    {/* === LEFT LINE === */}
                     <div className="flex-1 mt-8 md:mt-12 -mx-4 relative -z-10 transform scale-x-[-1] text-coral/40">
-                        <EkgLine variant={ekgVariant} />
+                        <EkgLine variant={ekgVariant} animationName={ekgAnimationName} />
                     </div>
 
-                    {/* === CENTER HEART & AMPERSAND === */}
                     <div className="flex flex-col items-center shrink-0 mx-2 -mt-1">
-                        
-                        {/* HEART (Aligned with Avatars) */}
                         <div className="mt-4 md:mt-6 bg-white p-3 md:p-4 rounded-full border-[3px] border-rose-100 shadow-[0_0_30px_rgba(255,107,107,0.6)] relative z-20">
-                            <Icon name="heart" size={36} className="text-coral drop-shadow-xl heart-pulse-animate" />
+                            <Icon 
+                                name="Heart" // FIX: Use PascalCase for the icon name
+                                size={36} 
+                                className="text-rose-500 fill-rose-500 drop-shadow-xl"
+                                style={{
+                                    animationName: heartAnimationName,
+                                    animationDuration: '1.4s',
+                                    animationTimingFunction: 'ease-out',
+                                    animationIterationCount: 'infinite',
+                                }}
+                            />
                         </div>
-                        
-                        {/* AMPERSAND (Pushed down to align with Names) */}
                         <span className="font-display font-bold text-3xl md:text-5xl text-transparent bg-clip-text bg-gradient-to-br from-rose-300 to-orange-300 drop-shadow-sm opacity-90 mt-8 md:mt-13">
                             &
                         </span>
                     </div>
 
-                    {/* === RIGHT LINE === */}
                     <div className="flex-1 mt-8 md:mt-12 -mx-4 relative -z-10 text-coral/40">
-                        <EkgLine variant={ekgVariant} />
+                        <EkgLine variant={ekgVariant} animationName={ekgAnimationName} />
                     </div>
 
-                    {/* === RIGHT AVATAR GROUP === */}
                     <div className="flex flex-col items-center shrink-0 z-10 w-32 md:w-40">
                         <div className="w-20 h-20 md:w-32 md:h-32 rounded-full border-[5px] border-white shadow-2xl overflow-hidden relative group transition-transform hover:scale-105 duration-300 ring-1 ring-slate-100 bg-white">
                             <img src={user.avatar} className="w-full h-full object-cover" alt={user.name1} />
@@ -98,10 +98,8 @@ const HeroHighlight = ({ user }: Props) => {
                             {user.name1}
                         </h1>
                     </div>
-
                 </div>
 
-                {/* Bottom Decoration */}
                 <div className="text-center relative mt-12 hidden md:block">
                     <div className="absolute -left-16 -top-8 opacity-40 rotate-12">
                         <DoodleArrow />

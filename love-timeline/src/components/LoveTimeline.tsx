@@ -11,6 +11,7 @@ import BackgroundBlobs from '@/components/BackgroundBlobs';
 import BackgroundDecorations from '@/components/BackgroundDecorations';
 import ProfileWidget from '@/components/ProfileWidget';
 import AddMemoryModal from '@/components/AddMemoryModal';
+import LoginModal from '@/components/LoginModal';
 import { useUploadQueue } from '@/hooks/useUploadQueue';
 import { Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 
@@ -36,6 +37,7 @@ interface LoveTimelineProps {
 export default function LoveTimeline({ initialMemories, initialComments, partners }: LoveTimelineProps) {
     const router = useRouter();
     const [isAddMemoryOpen, setIsAddMemoryOpen] = useState(false);
+    const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
     const [memories, setMemories] = useState(initialMemories);
     const [comments, setComments] = useState(initialComments);
     const [currentUser, setCurrentUser] = useState<any>(null);
@@ -106,6 +108,7 @@ export default function LoveTimeline({ initialMemories, initialComments, partner
             const updated = [newMemory, ...prev];
             return updated.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
         });
+        setActiveDate(newMemory.date);
     };
 
     const handleDeleteOptimistic = (id: string) => setMemories(prev => prev.filter(m => m.id !== id));
@@ -184,6 +187,14 @@ export default function LoveTimeline({ initialMemories, initialComments, partner
         }
     }, [activeDate]);
 
+    const handleAddMemoryClick = () => {
+        if (!currentUser) {
+            setIsLoginModalOpen(true);
+        } else {
+            setIsAddMemoryOpen(true);
+        }
+    };
+
     return (
         <div className="min-h-screen pb-20 relative font-sans text-slate">
             <BackgroundBlobs />
@@ -191,6 +202,7 @@ export default function LoveTimeline({ initialMemories, initialComments, partner
             
             <ProfileWidget initialUser={partners?.[0]} onUserChange={setCurrentUser} />
             <AddMemoryModal isOpen={isAddMemoryOpen} onClose={() => setIsAddMemoryOpen(false)} onAddOptimistic={handleAddOptimistic} currentUser={currentUser} addToQueue={addToQueue} />
+            <LoginModal isOpen={isLoginModalOpen} onClose={() => setIsLoginModalOpen(false)} />
 
             <header className="relative z-10 flex flex-col items-center">
                 <HeroHighlight user={heroData} />
@@ -213,7 +225,7 @@ export default function LoveTimeline({ initialMemories, initialComments, partner
                                 </span>
                             </div>
                         </div>
-                        <button onClick={() => setIsAddMemoryOpen(true)} className="bg-slate text-white px-6 py-3 rounded-xl font-bold shadow-lg hover:scale-105 transition-transform flex items-center gap-2 text-sm group">
+                        <button onClick={handleAddMemoryClick} className="bg-slate text-white px-6 py-3 rounded-xl font-bold shadow-lg hover:scale-105 transition-transform flex items-center gap-2 text-sm group">
                             <div className="bg-white/20 p-1 rounded-full group-hover:rotate-90 transition"><Icon name="Camera" size={16} /></div>
                             <span className="hidden md:inline">Add Memory</span>
                         </button>

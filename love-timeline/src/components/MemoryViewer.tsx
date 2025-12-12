@@ -103,6 +103,27 @@ export default function MemoryViewer({ isOpen, onClose, item, initialIndex = 0 }
                     onClick={(e) => e.stopPropagation()} 
                 />
             )}
+
+            {item.type === 'pdf' && item.mediaUrls && item.mediaUrls[0] && (
+                <div className="w-full max-w-4xl h-[80vh] bg-white rounded-lg shadow-2xl overflow-hidden relative flex flex-col">
+                    <iframe 
+                        src={item.mediaUrls[0]} 
+                        className="w-full flex-1"
+                        title="PDF Viewer"
+                    />
+                    <div className="bg-slate-100 p-4 border-t border-slate-200 flex justify-between items-center">
+                        <span className="font-bold text-slate-600 truncate max-w-[70%]">{item.content || 'Document'}</span>
+                        <a 
+                            href={item.mediaUrls[0]} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="bg-coral text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-rose-400 transition-colors"
+                        >
+                            Open / Download
+                        </a>
+                    </div>
+                </div>
+            )}
           </motion.div>
         </div>
       )}

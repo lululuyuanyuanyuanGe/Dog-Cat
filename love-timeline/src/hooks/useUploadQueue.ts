@@ -57,7 +57,10 @@ export const useUploadQueue = () => {
 
                     const { error: uploadError } = await supabase.storage
                         .from('LoveTimelineMedias')
-                        .upload(filePath, file, { upsert: true });
+                        .upload(filePath, file, { 
+                            upsert: true,
+                            contentType: file.type // Explicitly set MIME type
+                        });
 
                     if (uploadError) throw new Error(`Storage: ${uploadError.message}`);
 

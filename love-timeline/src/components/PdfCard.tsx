@@ -5,6 +5,7 @@ interface PdfCardProps {
     item: {
         title: string;
         sizeLabel?: string;
+        src: string;
     };
 }
 
@@ -18,7 +19,15 @@ const PdfCard: React.FC<PdfCardProps> = ({ item }) => (
                 <span className="text-[10px] font-mono text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">{item.sizeLabel || 'DOC'}</span>
             </div>
          </div>
-         <button className="w-full mt-4 flex items-center justify-center gap-2 py-2 rounded-xl border border-gray-200 text-xs font-bold text-slate/60 hover:bg-coral hover:border-coral hover:text-white transition"><Icon name="Download" size={14} /> View File</button>
+         <a 
+            href={item.src} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="w-full mt-4 flex items-center justify-center gap-2 py-2 rounded-xl border border-gray-200 text-xs font-bold text-slate/60 hover:bg-coral hover:border-coral hover:text-white transition cursor-pointer"
+         >
+            <Icon name="Download" size={14} /> View File
+         </a>
          <div className="paper-corner"></div>
     </div>
 );

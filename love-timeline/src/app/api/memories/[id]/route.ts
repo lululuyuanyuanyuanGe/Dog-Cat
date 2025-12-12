@@ -31,8 +31,16 @@ export async function DELETE(request: Request, props: { params: Promise<{ id: st
           // We need 'photos/filename.jpg'
           const urlParts = memory.media_url.split('/LoveTimelineMedias/');
           if (urlParts.length > 1) {
-              const filePath = urlParts[1];
-              await supabase.storage.from('LoveTimelineMedias').remove([filePath]);
+              const filePath = decodeURIComponent(urlParts[1]); // Fix: Decode URL for spaces/special chars
+              console.log(`Attempting to delete file: ${filePath}`);
+              
+              const { error: storageError } = await supabase.storage.from('LoveTimelineMedias').remove([filePath]);
+              
+              if (storageError) {
+                  console.error("Storage delete error:", storageError);
+              } else {
+                  console.log("Storage file deleted successfully.");
+              }
           }
       } catch (err) {
           console.error("Failed to cleanup storage file:", err);

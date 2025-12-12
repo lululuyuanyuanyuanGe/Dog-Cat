@@ -124,6 +124,18 @@ export default function MemoryViewer({ isOpen, onClose, item, initialIndex = 0 }
                     </div>
                 </div>
             )}
+
+            {item.type === 'video' && item.mediaUrls && item.mediaUrls[0] && (
+                <video 
+                    src={item.mediaUrls[0]} 
+                    controls 
+                    autoPlay 
+                    playsInline
+                    className="max-h-[80vh] max-w-full rounded-lg shadow-2xl outline-none border-4 border-white"
+                >
+                    Your browser does not support the video tag.
+                </video>
+            )}
           </motion.div>
         </div>
       )}

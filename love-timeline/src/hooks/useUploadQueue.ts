@@ -48,18 +48,20 @@ export const useUploadQueue = () => {
                 }
             }
             else {
-                // Sequential Uploads
-                for (const file of item.files) {
+                // 1. Parallel Storage Uploads
+                const uploadResults = await Promise.all(item.files.map(async (file) => {
                     const fileExt = file.name.split('.').pop();
                     const safeFileName = file.name.replace(/[^a-zA-Z0-9]/g, '_');
                     const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}-${safeFileName}.${fileExt}`;
-                    const filePath = `${item.type}s/${fileName}`;
+                    
+                    const folder = item.type === 'pdf' ? 'pdfs' : item.type === 'video' ? 'videos' : 'photos';
+                    const filePath = `${folder}/${fileName}`;
 
                     const { error: uploadError } = await supabase.storage
                         .from('LoveTimelineMedias')
                         .upload(filePath, file, { 
                             upsert: true,
-                            contentType: file.type // Explicitly set MIME type
+                            contentType: file.type 
                         });
 
                     if (uploadError) throw new Error(`Storage: ${uploadError.message}`);
@@ -67,22 +69,29 @@ export const useUploadQueue = () => {
                     const { data: { publicUrl } } = supabase.storage
                         .from('LoveTimelineMedias')
                         .getPublicUrl(filePath);
+                    
+                    return { file, publicUrl };
+                }));
 
+                // 2. Batch DB Insert (Atomic Transaction)
+                const batchPayload = uploadResults.map(({ file, publicUrl }) => ({
+                    date: item.date,
+                    type: item.type,
+                    content: item.content,
+                    media_url: publicUrl,
+                    metadata: {
+                        ...(item.metadata || {}),
+                        original_filename: file.name,
+                        size: file.size,
+                        mime_type: file.type
+                    }
+                }));
+
+                if (batchPayload.length > 0) {
                     const res = await fetch('/api/memories', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            date: item.date,
-                            type: item.type,
-                            content: item.content,
-                            media_url: publicUrl,
-                            metadata: {
-                                ...(item.metadata || {}),
-                                original_filename: file.name,
-                                size: file.size,
-                                mime_type: file.type
-                            }
-                        }),
+                        body: JSON.stringify(batchPayload),
                     });
                     
                     if (!res.ok) {

@@ -7,10 +7,11 @@ export async function POST(request: Request) {
 
     // 1. Verify Authentication
     const {
-      data: { session },
-    } = await supabase.auth.getSession();
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -19,29 +20,46 @@ export async function POST(request: Request) {
 
     // 2. Parse Request Data
     const body = await request.json();
-    const { date, type, content, media_url, metadata } = body;
 
-    // Basic validation
-    if (!date || !type) {
-      return NextResponse.json(
-        { error: 'Missing required fields: date or type' },
-        { status: 400 }
-      );
+    // 3. Handle Batch vs Single Insert
+    let insertPayload;
+    
+    if (Array.isArray(body)) {
+        // Batch Mode
+        insertPayload = body.map(item => ({
+            user_id: user.id,
+            date: item.date,
+            type: item.type,
+            content: item.content,
+            media_url: item.media_url,
+            metadata: item.metadata || {},
+        }));
+    } else {
+        // Single Mode
+        const { date, type, content, media_url, metadata } = body;
+        
+        if (!date || !type) {
+            return NextResponse.json(
+                { error: 'Missing required fields: date or type' },
+                { status: 400 }
+            );
+        }
+
+        insertPayload = [{
+            user_id: user.id,
+            date,
+            type,
+            content,
+            media_url,
+            metadata: metadata || {},
+        }];
     }
 
-    // 3. Insert Memory
+    // 4. Execute Insert
     const { data, error } = await supabase
       .from('memories')
-      .insert({
-        user_id: session.user.id,
-        date,
-        type,
-        content,
-        media_url,
-        metadata: metadata || {},
-      } as any)
-      .select()
-      .single();
+      .insert(insertPayload as any)
+      .select();
 
     if (error) {
       console.error('Supabase Insert Error:', error);

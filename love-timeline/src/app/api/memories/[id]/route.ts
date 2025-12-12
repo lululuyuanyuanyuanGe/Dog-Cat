@@ -27,24 +27,29 @@ export async function DELETE(request: Request, props: { params: Promise<{ id: st
   // 3. Delete from Storage if exists
   if (memory.media_url) {
       try {
-          // Extract path from URL: .../LoveTimelineMedias/photos/filename.jpg
-          // We need 'photos/filename.jpg'
-          const urlParts = memory.media_url.split('/LoveTimelineMedias/');
-          if (urlParts.length > 1) {
-              const filePath = decodeURIComponent(urlParts[1]); // Fix: Decode URL for spaces/special chars
+          // Robust path extraction: Capture everything after 'LoveTimelineMedias/'
+          const match = memory.media_url.match(/LoveTimelineMedias\/(.+)/);
+          
+          if (match && match[1]) {
+              const filePath = decodeURIComponent(match[1]); 
               console.log(`Attempting to delete file: ${filePath}`);
               
               const { error: storageError } = await supabase.storage.from('LoveTimelineMedias').remove([filePath]);
               
               if (storageError) {
                   console.error("Storage delete error:", storageError);
+                  return NextResponse.json({ error: `Storage delete failed: ${storageError.message}` }, { status: 500 });
               } else {
                   console.log("Storage file deleted successfully.");
               }
+          } else {
+              console.warn("Could not extract file path from URL:", memory.media_url);
+              // If we can't parse the URL, we might choose to proceed or fail. 
+              // Safer to proceed as it might be an external URL or legacy format.
           }
-      } catch (err) {
+      } catch (err: any) {
           console.error("Failed to cleanup storage file:", err);
-          // Continue to delete DB record even if storage cleanup fails
+          return NextResponse.json({ error: `Storage cleanup exception: ${err.message}` }, { status: 500 });
       }
   }
 

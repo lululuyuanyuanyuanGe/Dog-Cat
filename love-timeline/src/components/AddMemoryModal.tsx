@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Upload, Loader2, Image as ImageIcon, Video, FileText, Mic, File } from 'lucide-react';
+import { X, Upload, Loader2, Image as ImageIcon, Video, FileText, Mic, File as FileIcon, StopCircle, Play, Trash2 } from 'lucide-react';
 import DatePicker from '@/components/DatePicker';
 import { getRandomStyleId } from '@/lib/styles';
 
@@ -18,6 +18,13 @@ interface AddMemoryModalProps {
 
 export default function AddMemoryModal({ isOpen, onClose, onAddOptimistic, currentUser, addToQueue }: AddMemoryModalProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Recording State
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
 
   // Correct Local Date Calculation
   const getLocalDate = () => {
@@ -31,6 +38,71 @@ export default function AddMemoryModal({ isOpen, onClose, onAddOptimistic, curre
   
   const [files, setFiles] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
+
+  // Cleanup on unmount or close
+  useEffect(() => {
+      if (!isOpen) {
+          stopRecordingCleanup();
+      }
+      return () => stopRecordingCleanup();
+  }, [isOpen]);
+
+  const stopRecordingCleanup = () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+          mediaRecorderRef.current.stop();
+      }
+      setIsRecording(false);
+      setRecordingTime(0);
+  };
+
+  const startRecording = async () => {
+      try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          const mediaRecorder = new MediaRecorder(stream);
+          mediaRecorderRef.current = mediaRecorder;
+          audioChunksRef.current = [];
+
+          mediaRecorder.ondataavailable = (event) => {
+              if (event.data.size > 0) {
+                  audioChunksRef.current.push(event.data);
+              }
+          };
+
+          mediaRecorder.onstop = () => {
+              const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+              const audioFile = new File([audioBlob], `recording-${Date.now()}.webm`, { type: 'audio/webm' });
+              setFiles(prev => [...prev, audioFile]);
+              stream.getTracks().forEach(track => track.stop()); // Stop mic
+          };
+
+          mediaRecorder.start();
+          setIsRecording(true);
+          setRecordingTime(0);
+          
+          timerRef.current = setInterval(() => {
+              setRecordingTime(prev => prev + 1);
+          }, 1000);
+
+      } catch (err) {
+          console.error("Microphone access denied:", err);
+          setError("Microphone access denied. Please allow permissions.");
+      }
+  };
+
+  const stopRecording = () => {
+      if (mediaRecorderRef.current) {
+          mediaRecorderRef.current.stop();
+          setIsRecording(false);
+          if (timerRef.current) clearInterval(timerRef.current);
+      }
+  };
+
+  const formatTime = (seconds: number) => {
+      const mins = Math.floor(seconds / 60);
+      const secs = seconds % 60;
+      return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -208,7 +280,7 @@ export default function AddMemoryModal({ isOpen, onClose, onAddOptimistic, curre
                 <TypeButton t="video" icon={Video} label="Video" />
                 <TypeButton t="note" icon={FileText} label="Note" />
                 <TypeButton t="audio" icon={Mic} label="Audio" />
-                <TypeButton t="pdf" icon={File} label="PDF" />
+                <TypeButton t="pdf" icon={FileIcon} label="PDF" />
               </div>
 
               <div className="space-y-4">
@@ -233,51 +305,133 @@ export default function AddMemoryModal({ isOpen, onClose, onAddOptimistic, curre
                 {type !== 'note' && (
                   <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
-                        {type === 'audio' ? 'Voice/Audio Files' : 'Media Files'}
+                        {type === 'audio' ? 'Voice Recorder' : 'Media Files'}
                     </label>
+                    
+                    {/* Audio Recorder UI */}
+                    {type === 'audio' && files.length === 0 && (
+                        <div className="flex flex-col items-center justify-center py-6 border-2 border-dashed border-coral/30 rounded-xl bg-coral/5 gap-4">
+                            {isRecording ? (
+                                <>
+                                    <div className="text-4xl font-mono text-coral font-bold animate-pulse">{formatTime(recordingTime)}</div>
+                                    <button 
+                                        type="button" 
+                                        onClick={stopRecording}
+                                        className="w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center text-white shadow-lg transition-transform hover:scale-110"
+                                    >
+                                        <StopCircle size={32} />
+                                    </button>
+                                    <p className="text-xs text-coral/80 font-bold uppercase tracking-widest">Recording...</p>
+                                </>
+                            ) : (
+                                <>
+                                    <button 
+                                        type="button" 
+                                        onClick={startRecording}
+                                        className="w-16 h-16 rounded-full bg-coral hover:bg-coral-dark flex items-center justify-center text-white shadow-lg transition-transform hover:scale-110"
+                                    >
+                                        <Mic size={32} />
+                                    </button>
+                                    <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Tap to Record</p>
+                                    <button 
+                                        type="button"
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className="text-xs text-slate-400 hover:text-coral underline mt-2"
+                                    >
+                                        or upload audio file
+                                    </button>
+                                </>
+                            )}
+                        </div>
+                    )}
                     
                     {files.length > 0 && (
                         <div className="flex flex-wrap gap-2 mb-3">
                             {files.map((f, i) => (
-                                <div key={i} className="relative group/file">
-                                    <div className="w-16 h-16 rounded-lg bg-white border border-slate-200 overflow-hidden flex items-center justify-center">
-                                        {f.type.startsWith('image/') ? (
+                                <div key={i} className={`relative group/file ${f.type.startsWith('audio/') ? 'w-full' : ''}`}>
+                                    {f.type.startsWith('image/') ? (
+                                        <div className="w-16 h-16 rounded-lg bg-white border border-slate-200 overflow-hidden flex items-center justify-center relative shadow-sm">
                                             <img src={URL.createObjectURL(f)} className="w-full h-full object-cover" alt="preview" />
-                                        ) : (
-                                            <span className="text-[10px] text-slate-500 font-mono p-1 text-center break-all">{f.name.slice(0, 10)}...</span>
-                                        )}
-                                    </div>
+                                        </div>
+                                    ) : f.type.startsWith('audio/') ? (
+                                        <div className="w-full p-3 rounded-lg bg-white border border-slate-200 flex items-center gap-3 shadow-sm">
+                                            <div className="w-10 h-10 rounded-full bg-coral/10 flex items-center justify-center text-coral shrink-0">
+                                                <Mic size={20} />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-bold text-slate-700 truncate">{f.name}</p>
+                                                <p className="text-xs text-slate-400">{Math.round(f.size / 1024)} KB</p>
+                                            </div>
+                                            <audio controls src={URL.createObjectURL(f)} className="h-8 w-24" />
+                                        </div>
+                                    ) : f.type.startsWith('video/') ? (
+                                        <div className="w-20 h-16 rounded-lg bg-black border border-slate-700 overflow-hidden flex items-center justify-center relative group shadow-sm">
+                                            <video 
+                                                src={URL.createObjectURL(f)} 
+                                                className="w-full h-full object-cover opacity-80"
+                                                muted
+                                                playsInline
+                                                onMouseOver={(e) => e.currentTarget.play()}
+                                                onMouseOut={(e) => e.currentTarget.pause()}
+                                            />
+                                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                                <div className="bg-black/30 rounded-full p-1 backdrop-blur-sm">
+                                                    <Play size={12} className="text-white fill-white" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ) : f.type === 'application/pdf' || f.name.endsWith('.pdf') ? (
+                                        <div className="w-full p-2 rounded-lg bg-red-50 border border-red-100 flex items-center gap-3 shadow-sm">
+                                            <div className="w-10 h-10 rounded-lg bg-white border border-red-100 flex items-center justify-center text-red-500 shrink-0 shadow-sm">
+                                                <FileIcon size={20} />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-bold text-red-900/70 truncate">{f.name}</p>
+                                                <span className="text-[10px] font-bold text-red-400 bg-white px-1.5 py-0.5 rounded border border-red-100">PDF</span>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="w-16 h-16 rounded-lg bg-white border border-slate-200 flex flex-col items-center justify-center p-2 text-slate-500 shadow-sm">
+                                            <FileIcon size={24} className="mb-1 opacity-50" />
+                                            <span className="text-[10px] font-mono text-center w-full truncate">{f.name.split('.').pop()}</span>
+                                        </div>
+                                    )}
+                                    
                                     <button
                                         type="button"
                                         onClick={() => removeFile(i)}
-                                        className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 shadow-sm opacity-0 group-hover/file:opacity-100 transition-opacity"
+                                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-sm opacity-0 group-hover/file:opacity-100 transition-opacity z-10"
                                     >
-                                        <X size={10} />
+                                        <X size={12} />
                                     </button>
                                 </div>
                             ))}
                         </div>
                     )}
 
-                    <div
-                      onClick={() => fileInputRef.current?.click()}
-                      className={`border-2 border-dashed rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer transition-all ${
-                        files.length > 0 ? 'border-coral/50 bg-coral/5' : 'border-slate-300 hover:border-coral/50 hover:bg-white/50'
-                      }`}
-                    >
-                      <input
+                    {type !== 'audio' && (
+                        <div
+                        onClick={() => fileInputRef.current?.click()}
+                        className={`border-2 border-dashed rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer transition-all ${
+                            files.length > 0 ? 'border-coral/50 bg-coral/5' : 'border-slate-300 hover:border-coral/50 hover:bg-white/50'
+                        }`}
+                        >
+                        <Upload size={24} className="text-slate-400 mb-2" />
+                        <p className="text-sm text-slate-500">
+                            {files.length > 0 ? 'Add more files' : `Click to upload ${type}s`}
+                        </p>
+                        </div>
+                    )}
+                    
+                    {/* Unified hidden input for all media types */}
+                     <input
                         ref={fileInputRef}
                         type="file"
                         accept={getAcceptedFileTypes()}
                         onChange={handleFileChange}
                         className="hidden"
                         multiple
-                      />
-                      <Upload size={24} className="text-slate-400 mb-2" />
-                      <p className="text-sm text-slate-500">
-                          {files.length > 0 ? 'Add more files' : `Click to upload ${type}s`}
-                      </p>
-                    </div>
+                    />
                   </div>
                 )}
               </div>
@@ -298,7 +452,7 @@ export default function AddMemoryModal({ isOpen, onClose, onAddOptimistic, curre
                 </button>
                 <button
                   type="submit"
-                  disabled={type !== 'note' && files.length === 0}
+                  disabled={type !== 'note' && files.length === 0 && !isRecording}
                   className="bg-coral text-white px-6 py-2 rounded-xl font-bold shadow-lg shadow-coral/20 hover:shadow-coral/40 hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                 >
                   Add Memory

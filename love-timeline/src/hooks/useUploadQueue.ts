@@ -54,7 +54,10 @@ export const useUploadQueue = () => {
                     const safeFileName = file.name.replace(/[^a-zA-Z0-9]/g, '_');
                     const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}-${safeFileName}.${fileExt}`;
                     
-                    const folder = item.type === 'pdf' ? 'pdfs' : item.type === 'video' ? 'videos' : 'photos';
+                    const folder = item.type === 'pdf' ? 'pdfs' : 
+                                   item.type === 'video' ? 'videos' : 
+                                   item.type === 'audio' ? 'audios' : 'photos';
+                                   
                     const filePath = `${folder}/${fileName}`;
 
                     const { error: uploadError } = await supabase.storage

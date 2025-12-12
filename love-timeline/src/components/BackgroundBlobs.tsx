@@ -1,5 +1,3 @@
-import React from 'react';
-
 const BackgroundBlobs = () => (
     <div className="fixed inset-0 pointer-events-none z-[-1]">
         <div className="blob w-96 h-96 bg-pastel-pink rounded-full top-0 left-0 -translate-x-1/2 -translate-y-1/2 animate-float"></div>

@@ -33,8 +33,8 @@ const nanumPenScript = Nanum_Pen_Script({
 });
 
 export const metadata: Metadata = {
-  title: "Project 1314: Our Love Timeline",
-  description: "A digital scrapbook of our story.",
+  title: "Hazel & Orange",
+  description: "Sweet home for Luyuan & Claire!",
 };
 
 export default function RootLayout({

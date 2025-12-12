@@ -12,6 +12,7 @@ import BackgroundDecorations from '@/components/BackgroundDecorations';
 import ProfileWidget from '@/components/ProfileWidget';
 import AddMemoryModal from '@/components/AddMemoryModal';
 import LoginModal from '@/components/LoginModal';
+import UploadStatus from '@/components/UploadStatus';
 import { useUploadQueue } from '@/hooks/useUploadQueue';
 import { Loader2, AlertCircle, CheckCircle2, Trash2 } from 'lucide-react';
 
@@ -251,6 +252,7 @@ export default function LoveTimeline({ initialMemories, initialComments, partner
             <BackgroundDecorations />
             
             <ProfileWidget onUserChange={setCurrentUser} />
+            <UploadStatus queue={queue} />
             <AddMemoryModal isOpen={isAddMemoryOpen} onClose={() => setIsAddMemoryOpen(false)} onAddOptimistic={handleAddOptimistic} currentUser={currentUser} addToQueue={addToQueue} />
             <LoginModal isOpen={isLoginModalOpen} onClose={() => setIsLoginModalOpen(false)} />
 

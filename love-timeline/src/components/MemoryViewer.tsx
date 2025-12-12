@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Mic } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import NoteContent from './NoteContent';
 
@@ -135,6 +135,22 @@ export default function MemoryViewer({ isOpen, onClose, item, initialIndex = 0 }
                 >
                     Your browser does not support the video tag.
                 </video>
+            )}
+
+            {item.type === 'audio' && item.mediaUrls && item.mediaUrls[0] && (
+                <div className="bg-white p-8 rounded-3xl shadow-2xl flex flex-col items-center gap-6 max-w-md w-full border-4 border-white/50 backdrop-blur-md">
+                    <div className="w-24 h-24 bg-rose-100 rounded-full flex items-center justify-center animate-pulse-slow">
+                        <Mic size={48} className="text-rose-400" />
+                    </div>
+                    <audio 
+                        src={item.mediaUrls[0]} 
+                        controls 
+                        className="w-full"
+                    />
+                    {item.content && (
+                        <p className="text-xl font-hand text-slate-600 text-center">"{item.content}"</p>
+                    )}
+                </div>
             )}
           </motion.div>
         </div>

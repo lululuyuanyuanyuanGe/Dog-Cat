@@ -5,6 +5,7 @@ import PhotoCard from './PhotoCard';
 import NoteCard from './NoteCard';
 import VideoCard from './VideoCard';
 import PdfCard from './PdfCard';
+import AudioCard from './AudioCard';
 import { User, Trash2, Heart } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import DeleteConfirmModal from './DeleteConfirmModal';
@@ -218,9 +219,7 @@ const ScrapbookItem: React.FC<ScrapbookItemProps> = ({ item, onDeleteOptimistic,
                     )}
                     
                     {item.type === 'audio' && (
-                        <div className="w-full h-full bg-white rounded-2xl shadow-sm p-4 flex items-center justify-center border border-slate-100">
-                            <span className="text-slate-400 text-xs font-mono">Audio Clip</span>
-                        </div>
+                        <AudioCard item={{ ...item, src: item.src || '', content: item.content, time: item.time }} />
                     )}
                 </div>
             </div>

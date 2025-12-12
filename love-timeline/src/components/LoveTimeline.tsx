@@ -184,11 +184,13 @@ export default function LoveTimeline({ initialMemories, initialComments, partner
 
             if (isGroupable) {
                 lastItem.media_urls.push(memory.media_url);
+                lastItem.groupedIds.push(memory.id);
             } else {
                 groupedByDate[date].items.push({
                     ...memory,
                     src: memory.media_url,
                     media_urls: memory.type === 'photo' ? [memory.media_url] : undefined,
+                    groupedIds: [memory.id], // Initialize with own ID
                     time: new Date(memory.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
                     author: author,
                     raw_created_at: memory.created_at

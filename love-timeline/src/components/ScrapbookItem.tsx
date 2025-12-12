@@ -24,6 +24,7 @@ interface ScrapbookItemProps {
     };
     likes?: number;
     media_urls?: string[];
+    groupedIds?: string[];
     src?: string;
     content?: string;
     time?: string;
@@ -133,12 +134,27 @@ const ScrapbookItem: React.FC<ScrapbookItemProps> = ({ item, onDeleteOptimistic,
 
     const executeDelete = async () => {
         setIsDeleting(true);
-        onDeleteOptimistic(item.id);
+        
+        // Identify all IDs to delete (current item + grouped items)
+        const idsToDelete = item.groupedIds && item.groupedIds.length > 0 
+            ? item.groupedIds 
+            : [item.id];
+
+        // Optimistic Delete for all
+        idsToDelete.forEach(id => onDeleteOptimistic(id));
+
         try {
-            const res = await fetch(`/api/memories/${item.id}`, { method: 'DELETE' });
-            if (!res.ok) throw new Error('Failed to delete');
+            // Sequential delete to ensure reliability
+            for (const id of idsToDelete) {
+                const res = await fetch(`/api/memories/${id}`, { method: 'DELETE' });
+                if (!res.ok) console.warn(`Failed to delete memory ${id}`);
+            }
             router.refresh();
-        } catch (err) { console.error(err); alert('Could not delete memory.'); window.location.reload(); }
+        } catch (err) { 
+            console.error(err); 
+            alert('Could not delete some memories.'); 
+            window.location.reload(); 
+        }
     };
 
     if (isDeleting) return null;

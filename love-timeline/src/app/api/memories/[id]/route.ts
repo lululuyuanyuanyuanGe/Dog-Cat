@@ -24,11 +24,14 @@ export async function DELETE(request: Request, props: { params: Promise<{ id: st
       return NextResponse.json({ error: fetchError.message }, { status: 500 });
   }
 
+  console.log("DELETE Route - Memory fetched:", { id, media_url: memory.media_url, user_id: memory.user_id });
+
   // 3. Delete from Storage if exists
-  if (memory.media_url) {
+  if ((memory as any).media_url) {
       try {
+          console.log("Attempting to parse URL:", (memory as any).media_url);
           // Robust path extraction: Capture everything after 'LoveTimelineMedias/'
-          const match = memory.media_url.match(/LoveTimelineMedias\/(.+)/);
+          const match = (memory as any).media_url.match(/LoveTimelineMedias\/(.+)/);
           
           if (match && match[1]) {
               const filePath = decodeURIComponent(match[1]); 

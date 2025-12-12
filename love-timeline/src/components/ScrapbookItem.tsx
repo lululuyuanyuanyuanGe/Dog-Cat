@@ -215,7 +215,12 @@ const ScrapbookItem: React.FC<ScrapbookItemProps> = ({ item, onDeleteOptimistic,
                         <VideoCard item={{ ...item, src: item.src || '' }} />
                     )} 
                     {item.type === 'pdf' && (
-                        <PdfCard item={{ ...item, title: item.content || 'Document', src: item.src || '' }} />
+                        <PdfCard item={{ 
+                            ...item, 
+                            title: item.metadata?.original_filename || 'Document', 
+                            caption: item.content,
+                            src: item.src || '' 
+                        }} />
                     )}
                     
                     {item.type === 'audio' && (

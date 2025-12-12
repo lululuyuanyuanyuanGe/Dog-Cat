@@ -34,10 +34,54 @@ export default function AddMemoryModal({ isOpen, onClose, onAddOptimistic, curre
 
   const [date, setDate] = useState<string>(getLocalDate());
   const [type, setType] = useState<MemoryType>('photo');
-  const [content, setContent] = useState('');
   
-  const [files, setFiles] = useState<File[]>([]);
+  // Content per type
+  const [contentByType, setContentByType] = useState<Record<string, string>>({
+      photo: '',
+      video: '',
+      audio: '',
+      pdf: '',
+      note: ''
+  });
+  const content = contentByType[type] || '';
+
+  // State per type to persist selections
+  const [filesByType, setFilesByType] = useState<Record<string, File[]>>({
+      photo: [],
+      video: [],
+      audio: [],
+      pdf: [],
+      note: [] 
+  });
+  
+  // Derived state for current view
+  const files = filesByType[type] || [];
+  
   const [error, setError] = useState<string | null>(null);
+
+  // Check for unsaved changes
+  const hasUnsavedChanges = () => {
+      const hasFiles = Object.values(filesByType).some(arr => arr.length > 0);
+      const hasContent = Object.values(contentByType).some(s => s.trim().length > 0);
+      return hasFiles || hasContent;
+  };
+
+  const handleCloseAttempt = () => {
+      if (hasUnsavedChanges()) {
+          if (window.confirm("Discard unsaved changes?")) {
+              resetAndClose();
+          }
+      } else {
+          resetAndClose();
+      }
+  };
+
+  const resetAndClose = () => {
+      setFilesByType({ photo: [], video: [], audio: [], pdf: [], note: [] });
+      setContentByType({ photo: '', video: '', audio: '', pdf: '', note: '' });
+      stopRecordingCleanup();
+      onClose();
+  };
 
   // Cleanup on unmount or close
   useEffect(() => {
@@ -72,7 +116,12 @@ export default function AddMemoryModal({ isOpen, onClose, onAddOptimistic, curre
           mediaRecorder.onstop = () => {
               const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
               const audioFile = new File([audioBlob], `recording-${Date.now()}.webm`, { type: 'audio/webm' });
-              setFiles(prev => [...prev, audioFile]);
+              
+              setFilesByType(prev => ({
+                  ...prev,
+                  audio: [...(prev.audio || []), audioFile]
+              }));
+              
               stream.getTracks().forEach(track => track.stop()); // Stop mic
           };
 
@@ -122,13 +171,19 @@ export default function AddMemoryModal({ isOpen, onClose, onAddOptimistic, curre
           return;
       }
 
-      setFiles(prev => [...prev, ...newFiles]);
+      setFilesByType(prev => ({
+          ...prev,
+          [type]: [...(prev[type] || []), ...newFiles]
+      }));
       setError(null);
     }
   };
 
   const removeFile = (index: number) => {
-    setFiles(prev => prev.filter((_, i) => i !== index));
+    setFilesByType(prev => ({
+        ...prev,
+        [type]: prev[type].filter((_, i) => i !== index)
+    }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -142,21 +197,71 @@ export default function AddMemoryModal({ isOpen, onClose, onAddOptimistic, curre
 
     // Generate a unique ID for this upload batch
     const batchId = crypto.randomUUID();
+    let hasItems = false;
 
     try {
-      // 1. NOTES
-      if (type === 'note') {
-          // Generate a stable style ID
+      // 1. NOTES (Always submit note if content exists and user is on note tab OR just generically?)
+      // User request: "upload everything in once". 
+      // If user typed a note on 'Note' tab, we should upload it.
+      // But 'content' is shared caption.
+      // If 'files' exist, 'content' is caption.
+      // If no files, 'content' is a Note?
+      // Logic: If on 'Note' tab, treat content as Note.
+      // If on other tabs, content is caption for files.
+      
+      // Better Logic: Iterate types.
+      
+      // A. Process Files (Photo, Video, Audio, PDF)
+      Object.entries(filesByType).forEach(([fileType, fileList]) => {
+          if (fileList.length > 0) {
+              hasItems = true;
+              const typeContent = contentByType[fileType] || '';
+              
+              // Optimistic
+              const tempMemories = fileList.map((file, i) => ({
+                  id: `temp-${Date.now()}-${fileType}-${i}`,
+                  user_id: currentUser?.id,
+                  date,
+                  type: fileType,
+                  content: typeContent,
+                  media_url: URL.createObjectURL(file),
+                  created_at: new Date().toISOString(),
+                  metadata: { 
+                      original_filename: file.name, 
+                      size: file.size, 
+                      mime_type: file.type,
+                      batchId 
+                  },
+                  author
+              }));
+              tempMemories.forEach(m => onAddOptimistic(m));
+
+              // Queue
+              addToQueue({
+                  date,
+                  type: fileType,
+                  content: typeContent,
+                  files: fileList,
+                  author,
+                  metadata: { batchId }
+              });
+          }
+      });
+
+      // B. Process Note (If content exists in 'note' type)
+      const noteContent = contentByType['note'] || '';
+      
+      if (noteContent.trim()) {
+          hasItems = true;
           const styleId = getRandomStyleId();
+          const tempId = `temp-${Date.now()}-note`;
           
-          // Optimistic
-          const tempId = `temp-${Date.now()}`;
           const newNote = {
               id: tempId,
-              user_id: currentUser?.id, // Critical for isOwner check
+              user_id: currentUser?.id,
               date,
-              type,
-              content,
+              type: 'note',
+              content: noteContent,
               media_url: null,
               created_at: new Date().toISOString(),
               metadata: { styleId, batchId },
@@ -164,59 +269,21 @@ export default function AddMemoryModal({ isOpen, onClose, onAddOptimistic, curre
           };
           onAddOptimistic(newNote);
           
-          // Queue Background Upload
           addToQueue({
               date,
-              type,
-              content,
-              files: [], // No files
+              type: 'note',
+              content: noteContent,
+              files: [],
               author,
               metadata: { styleId, batchId }
           });
-      } 
-      // 2. MEDIA
-      else {
-          if (files.length === 0) throw new Error('Please select at least one file.');
-
-          // Optimistic
-          const tempMemories = files.map((file, i) => ({
-              id: `temp-${Date.now()}-${i}`,
-              user_id: currentUser?.id, // Critical for isOwner check
-              date,
-              type,
-              content,
-              media_url: URL.createObjectURL(file),
-              created_at: new Date().toISOString(),
-              metadata: { 
-                  original_filename: file.name, 
-                  size: file.size, 
-                  mime_type: file.type,
-                  batchId 
-              },
-              author
-          }));
-          tempMemories.forEach(m => onAddOptimistic(m));
-
-          // Queue Background Upload
-          addToQueue({
-              date,
-              type,
-              content,
-              files: files, // All files
-              author,
-              metadata: { batchId }
-          });
       }
 
-      // Close Immediately - No Waiting!
-      onClose();
-      
-      // Reset Form
-      setContent('');
-      setFiles([]);
-      // Reset date to today? No, maybe they want to add another for same date.
-      // But if they close and reopen, 'isOpen' check logic in useEffect (if existed) would reset it?
-      // State persists here.
+      if (!hasItems) {
+          throw new Error("Please add some files or write a note.");
+      }
+
+      resetAndClose();
       
     } catch (err: any) {
       console.error(err);
@@ -257,7 +324,7 @@ export default function AddMemoryModal({ isOpen, onClose, onAddOptimistic, curre
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={onClose}
+            onClick={handleCloseAttempt}
             className="absolute inset-0 bg-slate-900/20 backdrop-blur-sm"
           />
 
@@ -269,7 +336,7 @@ export default function AddMemoryModal({ isOpen, onClose, onAddOptimistic, curre
           >
             <div className="flex items-center justify-between p-6 border-b border-white/20 bg-white/30 sticky top-0 z-10 backdrop-blur-md">
               <h2 className="text-xl font-bold font-clash text-slate-700">Add New Memory</h2>
-              <button onClick={onClose} className="p-2 hover:bg-white/50 rounded-full transition-colors">
+              <button onClick={handleCloseAttempt} className="p-2 hover:bg-white/50 rounded-full transition-colors">
                 <X size={20} className="text-slate-500" />
               </button>
             </div>
@@ -296,7 +363,7 @@ export default function AddMemoryModal({ isOpen, onClose, onAddOptimistic, curre
                   <textarea
                     rows={type === 'note' ? 4 : 2}
                     value={content}
-                    onChange={(e) => setContent(e.target.value)}
+                    onChange={(e) => setContentByType(prev => ({ ...prev, [type]: e.target.value }))}
                     placeholder="Write something sweet..."
                     className="w-full bg-white/50 border border-white/50 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-coral/50 text-sm resize-none"
                   />
@@ -445,7 +512,7 @@ export default function AddMemoryModal({ isOpen, onClose, onAddOptimistic, curre
               <div className="flex justify-end pt-2">
                 <button
                   type="button"
-                  onClick={onClose}
+                  onClick={handleCloseAttempt}
                   className="px-4 py-2 text-slate-500 hover:text-slate-700 font-medium mr-2"
                 >
                   Cancel

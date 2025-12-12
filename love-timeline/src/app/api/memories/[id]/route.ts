@@ -52,7 +52,8 @@ export async function DELETE(request: Request, props: { params: Promise<{ id: st
   const { error } = await supabase.from('memories').delete().eq('id', id);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("DB Delete Error:", error);
+    return NextResponse.json({ error: error.message, details: error }, { status: 500 });
   }
 
   return NextResponse.json({ success: true });

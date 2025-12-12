@@ -22,6 +22,14 @@ const ProfileWidget = ({ initialUser, onUserChange }: Props) => {
     const supabase = createSupabaseBrowserClient();
     const router = useRouter();
 
+    // Safety timeout to prevent infinite loading state
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (isLoading) setIsLoading(false);
+        }, 3000);
+        return () => clearTimeout(timer);
+    }, [isLoading]);
+
     // Propagate user changes to parent
     useEffect(() => {
         if (onUserChange) {
@@ -33,20 +41,24 @@ const ProfileWidget = ({ initialUser, onUserChange }: Props) => {
         // Check active session
         const getUser = async () => {
             try {
-                const { data: { session } } = await supabase.auth.getSession();
-                if (session?.user) {
+                const { data: { user: authUser }, error } = await supabase.auth.getUser();
+                
+                if (authUser && !error) {
                     // Fetch profile data
                     const { data: profile } = await supabase
                         .from('users')
                         .select('*')
-                        .eq('id', session.user.id)
+                        .eq('id', authUser.id)
                         .single();
                     
                     // Merge auth user with profile data
-                    setUser({ ...session.user, ...(profile || {}) });
+                    setUser({ ...authUser, ...(profile || {}) });
                 } else {
                     setUser(null);
                 }
+            } catch (err) {
+                console.error("Profile fetch error:", err);
+                setUser(null);
             } finally {
                 setIsLoading(false);
             }

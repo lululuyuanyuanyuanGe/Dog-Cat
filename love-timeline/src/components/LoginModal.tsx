@@ -32,6 +32,26 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
 
       if (error) throw error;
 
+      // --- Session Management (Limit 2 Devices) ---
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+          const newSessionId = crypto.randomUUID();
+          
+          // Get existing sessions (default to [])
+          const currentSessions: string[] = user.user_metadata.active_sessions || [];
+          
+          // Add new session, keep only last 2 (including new one)
+          // Logic: [old, new] -> if 3: [new, newer, newest] -> keep [newer, newest]
+          const updatedSessions = [...currentSessions, newSessionId].slice(-2);
+          
+          await supabase.auth.updateUser({
+              data: { active_sessions: updatedSessions }
+          });
+          
+          // Store local session ID
+          localStorage.setItem('love_timeline_session_id', newSessionId);
+      }
+
       // Success
       router.refresh();
       onClose();

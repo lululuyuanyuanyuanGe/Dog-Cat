@@ -44,6 +44,16 @@ const ProfileWidget = ({ initialUser, onUserChange }: Props) => {
                 const { data: { user: authUser }, error } = await supabase.auth.getUser();
                 
                 if (authUser && !error) {
+                    // Session Enforcement (Max 2 Devices)
+                    const activeSessions: string[] = authUser.user_metadata.active_sessions || [];
+                    const localSessionId = localStorage.getItem('love_timeline_session_id');
+
+                    if (localSessionId && !activeSessions.includes(localSessionId)) {
+                        console.warn("Session expired: Device limit reached.");
+                        await handleLogout();
+                        return;
+                    }
+
                     // Fetch profile data
                     const { data: profile } = await supabase
                         .from('users')
@@ -93,6 +103,7 @@ const ProfileWidget = ({ initialUser, onUserChange }: Props) => {
         // Optimistic UI update: Clear user immediately
         setIsOpen(false);
         setUser(null);
+        localStorage.removeItem('love_timeline_session_id'); // Clear session ID
         
         try {
             await supabase.auth.signOut();

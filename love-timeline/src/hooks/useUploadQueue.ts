@@ -48,8 +48,12 @@ export const useUploadQueue = () => {
                 }
             }
             else {
-                // 1. Parallel Storage Uploads
-                const uploadResults = await Promise.all(item.files.map(async (file) => {
+                // Sequential Uploads (Strict Mode for Stability Debugging)
+                console.log(`Starting processing for ${item.files.length} files...`);
+                
+                for (const [index, file] of item.files.entries()) {
+                    console.log(`Processing file ${index + 1}/${item.files.length}: ${file.name} (${file.type})`);
+                    
                     const fileExt = file.name.split('.').pop();
                     const safeFileName = file.name.replace(/[^a-zA-Z0-9]/g, '_');
                     const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}-${safeFileName}.${fileExt}`;
@@ -60,47 +64,51 @@ export const useUploadQueue = () => {
                                    
                     const filePath = `${folder}/${fileName}`;
 
-                    const { error: uploadError } = await supabase.storage
+                    // 1. Upload to Storage
+                    console.log(`Uploading to ${filePath}...`);
+                    const { error: uploadError, data: uploadData } = await supabase.storage
                         .from('LoveTimelineMedias')
                         .upload(filePath, file, { 
                             upsert: true,
                             contentType: file.type 
                         });
 
-                    if (uploadError) throw new Error(`Storage: ${uploadError.message}`);
+                    if (uploadError) {
+                        console.error("Storage Upload Failed:", uploadError);
+                        throw new Error(`Storage: ${uploadError.message}`);
+                    }
+                    console.log("Upload success:", uploadData);
 
+                    // 2. Get Public URL
                     const { data: { publicUrl } } = supabase.storage
                         .from('LoveTimelineMedias')
                         .getPublicUrl(filePath);
-                    
-                    return { file, publicUrl };
-                }));
 
-                // 2. Batch DB Insert (Atomic Transaction)
-                const batchPayload = uploadResults.map(({ file, publicUrl }) => ({
-                    date: item.date,
-                    type: item.type,
-                    content: item.content,
-                    media_url: publicUrl,
-                    metadata: {
-                        ...(item.metadata || {}),
-                        original_filename: file.name,
-                        size: file.size,
-                        mime_type: file.type
-                    }
-                }));
-
-                if (batchPayload.length > 0) {
+                    // 3. Insert to DB
+                    console.log("Inserting to DB...", publicUrl);
                     const res = await fetch('/api/memories', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(batchPayload),
+                        body: JSON.stringify({
+                            date: item.date,
+                            type: item.type,
+                            content: item.content,
+                            media_url: publicUrl,
+                            metadata: {
+                                ...(item.metadata || {}),
+                                original_filename: file.name,
+                                size: file.size,
+                                mime_type: file.type
+                            }
+                        }),
                     });
                     
                     if (!res.ok) {
                         const errorData = await res.json().catch(() => ({}));
+                        console.error("DB Insert Failed:", errorData);
                         throw new Error(`DB: ${errorData.error || res.statusText}`);
                     }
+                    console.log("DB Insert success");
                 }
             }
 

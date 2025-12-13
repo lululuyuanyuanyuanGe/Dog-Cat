@@ -438,10 +438,21 @@ export default function AddMemoryModal({ isOpen, onClose, onAddOptimistic, curre
                                                 className="w-full h-full object-cover opacity-80"
                                                 muted
                                                 playsInline
-                                                onMouseOver={(e) => e.currentTarget.play()}
+                                                onMouseOver={(e) => e.currentTarget.play().catch(() => {})}
                                                 onMouseOut={(e) => e.currentTarget.pause()}
+                                                onError={(e) => {
+                                                    e.currentTarget.style.display = 'none';
+                                                    e.currentTarget.parentElement?.classList.add('video-error-fallback');
+                                                }}
                                             />
-                                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                            {/* Fallback Icon (visible if video hides) */}
+                                            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none video-fallback-content">
+                                                <Video size={20} className="text-white opacity-80 mb-1" />
+                                                <span className="text-[8px] font-bold text-white/60 uppercase tracking-widest">Video</span>
+                                            </div>
+                                            
+                                            {/* Play Overlay (hidden if fallback active via CSS or z-index) */}
+                                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none group-hover:hidden video-play-overlay">
                                                 <div className="bg-black/30 rounded-full p-1 backdrop-blur-sm">
                                                     <Play size={12} className="text-white fill-white" />
                                                 </div>

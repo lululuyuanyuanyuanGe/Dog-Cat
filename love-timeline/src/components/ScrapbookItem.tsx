@@ -140,19 +140,33 @@ const ScrapbookItem: React.FC<ScrapbookItemProps> = ({ item, onDeleteOptimistic,
             ? item.groupedIds 
             : [item.id];
 
-        // Optimistic Delete for all
+        console.log(`[Client Delete] Initiating deletion for ${idsToDelete.length} items:`, idsToDelete);
+
+        // Optimistic UI updates (remove visually immediately)
         idsToDelete.forEach(id => onDeleteOptimistic(id));
 
         try {
-            // Sequential delete to ensure reliability
-            for (const id of idsToDelete) {
-                const res = await fetch(`/api/memories/${id}`, { method: 'DELETE' });
-                if (!res.ok) console.warn(`Failed to delete memory ${id}`);
+            // Use Batch Delete API
+            const res = await fetch('/api/memories/batch-delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: idsToDelete })
+            });
+
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.error || 'Batch delete failed');
             }
+
+            console.log("[Client Delete] Server confirmed deletion success.");
+            
+            // Single refresh after batch operation
             router.refresh();
-        } catch (err) { 
-            console.error(err); 
-            alert('Could not delete some memories.'); 
+
+        } catch (err: any) { 
+            console.error("[Client Delete] Error:", err);
+            alert(`Delete failed: ${err.message}`); 
+            // Optional: Revert optimistic update here if needed, but usually we just reload
             window.location.reload(); 
         }
     };
